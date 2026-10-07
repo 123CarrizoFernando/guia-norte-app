@@ -103,7 +103,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       }
 
       final url = Uri.parse(
-        'http://localhost:3000/api/perfiles/${widget.perfilData['id']}',
+        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfilData['id']}',
       );
       final response = await http.put(
         url,

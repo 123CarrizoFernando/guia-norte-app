@@ -48,7 +48,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   Future<void> registrarVisita() async {
     try {
       final url = Uri.parse(
-        'http://localhost:3000/api/perfiles/${widget.perfil['id']}/visita',
+        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/visita',
       );
       await http.post(url);
     } catch (e) {
@@ -60,7 +60,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     // 1. Registrar el clic en la base de datos
     try {
       final url = Uri.parse(
-        'http://localhost:3000/api/perfiles/${widget.perfil['id']}/clic-whatsapp',
+        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/clic-whatsapp',
       );
       await http.post(url);
     } catch (e) {
@@ -128,7 +128,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   Future<void> fetchGaleria() async {
     try {
       final url = Uri.parse(
-        'http://localhost:3000/api/perfiles/${widget.perfil['id']}/galeria',
+        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/galeria',
       );
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -208,7 +208,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   Future<void> fetchResenas() async {
     try {
       final url = Uri.parse(
-        'http://localhost:3000/api/perfiles/${widget.perfil['id']}/resenas',
+        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/resenas',
       );
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -256,7 +256,9 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
 
     if (user != null) {
       try {
-        final url = Uri.parse('http://localhost:3000/api/clientes/auth');
+        final url = Uri.parse(
+          'https://guia-norte-backend.onrender.com/api/clientes/auth',
+        );
         final response = await http.post(
           url,
           headers: {'Content-Type': 'application/json'},
@@ -280,7 +282,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     if (_comentarioController.text.isEmpty) return;
     try {
       final url = Uri.parse(
-        'http://localhost:3000/api/perfiles/${widget.perfil['id']}/resenas',
+        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/resenas',
       );
       final response = await http.post(
         url,

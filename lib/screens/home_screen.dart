@@ -32,7 +32,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> fetchCategorias() async {
     try {
-      final url = Uri.parse('http://localhost:3000/api/categorias');
+      final url = Uri.parse(
+        'https://guia-norte-backend.onrender.com/api/categorias',
+      );
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
@@ -50,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> fetchDestacados() async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/destacados'),
+        Uri.parse('https://guia-norte-backend.onrender.com/api/destacados'),
       );
       if (response.statusCode == 200) {
         setState(() {

@@ -33,7 +33,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> cargarPerfilYGaleria() async {
     try {
       final urlPerfil = Uri.parse(
-        'http://localhost:3000/api/usuarios/${widget.usuarioId}/perfil',
+        'https://guia-norte-backend.onrender.com/api/usuarios/${widget.usuarioId}/perfil',
       );
       final responsePerfil = await http.get(urlPerfil);
 
@@ -42,7 +42,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() => perfilData = data);
 
         final urlGaleria = Uri.parse(
-          'http://localhost:3000/api/perfiles/${data['id']}/galeria',
+          'https://guia-norte-backend.onrender.com/api/perfiles/${data['id']}/galeria',
         );
         final responseGaleria = await http.get(urlGaleria);
 
@@ -88,7 +88,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         await http.post(
           Uri.parse(
-            'http://localhost:3000/api/perfiles/${perfilData!['id']}/galeria',
+            'https://guia-norte-backend.onrender.com/api/perfiles/${perfilData!['id']}/galeria',
           ),
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'imagen_url': secureUrl}),

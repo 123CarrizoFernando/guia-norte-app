@@ -51,7 +51,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
   Future<void> _fetchCategorias() async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/categorias'),
+        Uri.parse('https://guia-norte-backend.onrender.com/api/categorias'),
       );
       if (response.statusCode == 200) {
         setState(() => _categorias = json.decode(response.body));
@@ -64,7 +64,9 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
   Future<void> _fetchRubros(int categoriaId) async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/categorias/$categoriaId/rubros'),
+        Uri.parse(
+          'https://guia-norte-backend.onrender.com/api/categorias/$categoriaId/rubros',
+        ),
       );
       if (response.statusCode == 200) {
         setState(() => _rubros = json.decode(response.body));
@@ -77,7 +79,9 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
   Future<void> _fetchServicios(int rubroId) async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/rubros/$rubroId/servicios'),
+        Uri.parse(
+          'https://guia-norte-backend.onrender.com/api/rubros/$rubroId/servicios',
+        ),
       );
       if (response.statusCode == 200) {
         setState(() => _servicios = json.decode(response.body));
@@ -162,7 +166,9 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
       }
 
       // 2. Guardamos en nuestra Base de Datos en Neon
-      final url = Uri.parse('http://localhost:3000/api/perfiles');
+      final url = Uri.parse(
+        'https://guia-norte-backend.onrender.com/api/perfiles',
+      );
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},

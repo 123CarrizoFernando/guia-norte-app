@@ -32,7 +32,7 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
   Future<void> fetchProfesionales() async {
     try {
       final url = Uri.parse(
-        'http://localhost:3000/api/rubros/${widget.rubroId}/profesionales',
+        'https://guia-norte-backend.onrender.com/api/rubros/${widget.rubroId}/profesionales',
       );
       final response = await http.get(url);
 

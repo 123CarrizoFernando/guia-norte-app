@@ -32,7 +32,7 @@ class _RubrosScreenState extends State<RubrosScreen> {
   Future<void> fetchRubros() async {
     try {
       final url = Uri.parse(
-        'http://localhost:3000/api/categorias/${widget.categoriaId}/rubros',
+        'https://guia-norte-backend.onrender.com/api/categorias/${widget.categoriaId}/rubros',
       );
       final response = await http.get(url);
 

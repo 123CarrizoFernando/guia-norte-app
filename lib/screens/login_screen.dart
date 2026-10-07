@@ -31,7 +31,9 @@ class _LoginScreenState extends State<LoginScreen> {
       final User? user = userCredential.user;
 
       if (user != null) {
-        final url = Uri.parse('http://localhost:3000/api/auth/google');
+        final url = Uri.parse(
+          'https://guia-norte-backend.onrender.com/api/auth/google',
+        );
         final response = await http.post(
           url,
           headers: {'Content-Type': 'application/json'},

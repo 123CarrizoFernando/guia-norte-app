@@ -28,7 +28,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
   Future<void> buscarProfesionales() async {
     try {
       final url = Uri.parse(
-        'http://localhost:3000/api/buscar?q=${Uri.encodeComponent(widget.query)}',
+        'https://guia-norte-backend.onrender.com/api/buscar?q=${Uri.encodeComponent(widget.query)}',
       );
       final response = await http.get(url);
 
