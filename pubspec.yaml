@@ -1,0 +1,35 @@
+name: guia_del_norte
+description: "A new Flutter project."
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.1.0
+  google_fonts: ^6.1.0
+  cupertino_icons: ^1.0.8
+  
+  # Al dejarlos sin número, Flutter calcula y descarga 
+  # las versiones perfectas para tu SDK de forma automática.
+  firebase_core: 
+  firebase_auth: ^6.7.0 
+  google_sign_in: ^7.2.0 
+  image_picker: ^1.2.4
+  shared_preferences: ^2.5.6
+  url_launcher: ^6.3.3
+  share_plus: ^13.3.1
+  firebase_messaging: ^16.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

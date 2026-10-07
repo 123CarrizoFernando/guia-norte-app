@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1073291011558",
+    "project_id": "guia-del-norte-fbd7b",
+    "storage_bucket": "guia-del-norte-fbd7b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1073291011558:android:5c1ea9208d523006836227",
+        "android_client_info": {
+          "package_name": "com.example.guia_del_norte"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1073291011558-78uuqcq6inqhdvvcji25rb8c69ijliga.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9n0SPB7k5Z9STnmrg5rpiwXB2hyGrdeE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1073291011558-78uuqcq6inqhdvvcji25rb8c69ijliga.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
