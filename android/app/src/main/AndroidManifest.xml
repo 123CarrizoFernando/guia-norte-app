@@ -14,7 +14,7 @@
     </queries>
 
     <application
-        android:label="guia_del_norte"
+        android:label="Guía del Norte"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

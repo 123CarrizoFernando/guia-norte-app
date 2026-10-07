@@ -1,17 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'firebase_options.dart';
 import 'screens/main_screen.dart';
 
+// ==========================================
+// 1. MANEJADOR DE NOTIFICACIONES EN SEGUNDO PLANO
+// Debe estar afuera de cualquier clase para funcionar con la app cerrada
+// ==========================================
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint("Mensaje recibido en segundo plano: ${message.messageId}");
+}
+
 void main() async {
-  // 1. Asegurar la inicialización de los widgets de Flutter
+  // 2. Asegurar la inicialización de los widgets de Flutter
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Inicializar Firebase
+  // 3. Inicializar Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // 3. Arrancar la aplicación
+  // 4. Configurar el receptor de notificaciones en segundo plano
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // 5. Arrancar la aplicación
   runApp(const GuiaDelNorteApp());
 }
 

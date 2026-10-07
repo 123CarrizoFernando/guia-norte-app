@@ -102,28 +102,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _contactarSoporte() async {
-    const String tuNumeroAdmin = "5493873000000"; // REEMPLAZA CON TU NÚMERO
-    final String nombreNegocio =
-        perfilData?['nombre_comercial'] ?? 'un negocio';
-    final String mensaje =
-        "Hola, soy el administrador de *$nombreNegocio*. Me gustaría recibir información para mejorar mi cuenta al Plan Premium en Guía del Norte.";
-    final Uri url = Uri.parse(
-      "https://wa.me/$tuNumeroAdmin?text=${Uri.encodeComponent(mensaje)}",
-    );
-
+  // ==========================================
+  // FLUJO DE PAGO CON MERCADO PAGO
+  // ==========================================
+  Future<void> _pagarSuscripcionPremium() async {
+    final Uri url = Uri.parse('https://mpago.la/2TWNwfq');
     try {
       await launchUrl(url, mode: LaunchMode.externalApplication);
-    } catch (e) {}
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir Mercado Pago')),
+      );
+    }
   }
 
   Future<void> _cerrarSesion() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('profesional_id'); // Borramos la sesión
+    await prefs.remove('profesional_id');
 
     if (!mounted) return;
 
-    // Regresamos al MainScreen en la pestaña 0 (Inicio)
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
@@ -392,7 +391,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                   const SizedBox(height: 24),
 
-                  // PLAN Y MONETIZACIÓN
+                  // PLAN Y MONETIZACIÓN (MERCADO PAGO)
                   Card(
                     elevation: 0,
                     color: Colors.black87,
@@ -458,15 +457,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
-                                onPressed: _contactarSoporte,
+                                onPressed: _pagarSuscripcionPremium,
                                 icon: const Icon(
-                                  Icons.rocket_launch,
+                                  Icons.star,
                                   color: Colors.white,
                                 ),
-                                label: const Text('Mejorar a Premium'),
+                                label: const Text(
+                                  'Suscribirse con Mercado Pago',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.lightBlue,
+                                  backgroundColor: const Color(
+                                    0xFF009EE3,
+                                  ), // Azul de Mercado Pago
                                   foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
