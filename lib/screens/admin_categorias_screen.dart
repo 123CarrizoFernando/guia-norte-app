@@ -104,10 +104,8 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
           ElevatedButton(
             onPressed: () async {
               if (txtController.text.isNotEmpty) {
-                // 1. CAPTURAMOS EL MENSAJERO ANTES DE CERRAR LA VENTANA
                 final messenger = ScaffoldMessenger.of(context);
-                Navigator.pop(context); // Ahora sí cerramos seguro
-
+                Navigator.pop(context);
                 setState(() => isLoading = true);
 
                 final url = esEditar
@@ -116,22 +114,47 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
 
                 final request = esEditar ? http.put : http.post;
 
-                await request(
-                  Uri.parse(url),
-                  headers: {'Content-Type': 'application/json'},
-                  body: json.encode({
-                    'nombre': txtController.text.toUpperCase(),
-                  }),
-                );
+                try {
+                  final response = await request(
+                    Uri.parse(url),
+                    headers: {'Content-Type': 'application/json'},
+                    body: json.encode({
+                      'nombre': txtController.text.toUpperCase(),
+                    }),
+                  );
 
-                await _cargarTodo(); // Esperamos que recargue
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      esEditar ? 'Categoría actualizada' : 'Categoría creada',
+                  // VERIFICAMOS QUE EL SERVIDOR HAYA RESPONDIDO OK (200 o 201)
+                  if (response.statusCode == 200 ||
+                      response.statusCode == 201) {
+                    await _cargarTodo();
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          esEditar
+                              ? 'Categoría actualizada'
+                              : 'Categoría creada',
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else {
+                    setState(() => isLoading = false);
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Error del servidor al intentar guardar'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  setState(() => isLoading = false);
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Error de conexión a internet'),
+                      backgroundColor: Colors.red,
                     ),
-                  ),
-                );
+                  );
+                }
               }
             },
             child: const Text('Guardar'),
