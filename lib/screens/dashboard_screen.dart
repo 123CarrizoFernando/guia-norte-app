@@ -70,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final bytes = await imagen.readAsBytes();
 
-      const cloudName = 'TU_CLOUD_NAME'; // REEMPLAZA CON TU CLOUD NAME
+      const cloudName = 'ymlcqawz'; // REEMPLAZA CON TU CLOUD NAME
       final urlCloudinary = Uri.parse(
         'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
       );
@@ -99,21 +99,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       debugPrint('Error al subir foto: $e');
     } finally {
       setState(() => isUploading = false);
-    }
-  }
-
-  // ==========================================
-  // FLUJO DE PAGO CON MERCADO PAGO
-  // ==========================================
-  Future<void> _pagarSuscripcionPremium() async {
-    final Uri url = Uri.parse('https://mpago.la/2TWNwfq');
-    try {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo abrir Mercado Pago')),
-      );
     }
   }
 
@@ -419,15 +404,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.lightBlue.withOpacity(0.2),
+                                  color: perfilData!['plan_id'] == 3
+                                      ? Colors.amber.withOpacity(0.2)
+                                      : (perfilData!['plan_id'] == 2
+                                            ? Colors.lightBlue.withOpacity(0.2)
+                                            : Colors.grey.withOpacity(0.2)),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   perfilData!['plan_id'] == 3
                                       ? 'PREMIUM'
-                                      : 'BÁSICO',
-                                  style: const TextStyle(
-                                    color: Colors.lightBlue,
+                                      : (perfilData!['plan_id'] == 2
+                                            ? 'MEDIO'
+                                            : 'BÁSICO'),
+                                  style: TextStyle(
+                                    color: perfilData!['plan_id'] == 3
+                                        ? Colors.amber
+                                        : (perfilData!['plan_id'] == 2
+                                              ? Colors.lightBlue
+                                              : Colors.white),
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
                                   ),
@@ -436,6 +431,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ],
                           ),
                           const SizedBox(height: 16),
+
+                          // SI NO ES PREMIUM (PUEDE SER BÁSICO O MEDIO)
                           if (perfilData!['plan_id'] != 3) ...[
                             const Text(
                               '¡Destaca tu negocio!',
@@ -447,38 +444,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 8),
                             const Text(
-                              'Aparece primero en las búsquedas y consigue más clientes en Tartagal.',
+                              'Mejora tu plan para conseguir más clientes en Tartagal.',
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 14,
                               ),
                             ),
                             const SizedBox(height: 20),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: _pagarSuscripcionPremium,
-                                icon: const Icon(
-                                  Icons.star,
-                                  color: Colors.white,
-                                ),
-                                label: const Text(
-                                  'Suscribirse con Mercado Pago',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(
-                                    0xFF009EE3,
-                                  ), // Azul de Mercado Pago
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
+
+                            // SI ES BÁSICO, OFRECER PLAN MEDIO
+                            if (perfilData!['plan_id'] == 1)
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    // REEMPLAZA ESTO CON EL LINK DE $12.500
+                                    await launchUrl(
+                                      Uri.parse('TU_LINK_DE_12500'),
+                                      mode: LaunchMode.externalApplication,
+                                    );
+                                  },
+                                  icon: const Icon(
+                                    Icons.arrow_upward,
+                                    color: Colors.white,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                                  label: const Text(
+                                    'Subir a Plan Medio (\$12.500/mes)',
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blueAccent,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                   ),
                                 ),
                               ),
+
+                            const SizedBox(height: 12),
+
+                            // SI ES BÁSICO O MEDIO, OFRECER PLAN PREMIUM
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  // ESTE ES TU LINK OFICIAL DE $25.000
+                                  await launchUrl(
+                                    Uri.parse('https://mpago.la/2TWNwfq'),
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.star,
+                                  color: Colors.black87,
+                                ),
+                                label: const Text(
+                                  'Subir a Plan Premium (\$25.000/mes)',
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.amber,
+                                  foregroundColor: Colors.black87,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+
+                          // SI YA ES PREMIUM
+                          if (perfilData!['plan_id'] == 3) ...[
+                            const Text(
+                              '¡Eres Nivel Premium!',
+                              style: TextStyle(
+                                color: Colors.amber,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Actualmente disfrutas del máximo posicionamiento en las búsquedas.',
+                              style: TextStyle(color: Colors.white70),
                             ),
                           ],
                         ],

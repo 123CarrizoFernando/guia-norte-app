@@ -3,6 +3,9 @@ import 'package:http/http.dart' as http;
 
 import 'dart:convert';
 
+// IMPORTANTE: Asegúrate de tener este archivo creado en la misma carpeta
+import 'admin_negocios_screen.dart';
+
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -237,11 +240,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         leading: const Icon(Icons.star, color: Colors.amber),
                         title: const Text('Aprobar Negocios Premium'),
                         trailing: const Icon(Icons.chevron_right),
-                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Función en desarrollo...'),
-                          ),
-                        ),
+                        onTap: () {
+                          // NAVEGACIÓN CORREGIDA
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AdminNegociosScreen(),
+                            ),
+                          );
+                        },
                       ),
                       const Divider(height: 1),
                       ListTile(
