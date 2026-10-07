@@ -9,6 +9,7 @@ import 'login_screen.dart';
 import 'dashboard_screen.dart';
 import 'perfil_detalle_screen.dart';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 class MainScreen extends StatefulWidget {
@@ -49,9 +50,19 @@ class _MainScreenState extends State<MainScreen> {
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       debugPrint('Permiso de notificaciones concedido.');
 
-      // 2. Suscribimos a este celular al canal masivo "general"
-      await messaging.subscribeToTopic('general');
-      debugPrint('Suscrito al tema: general');
+      // 2. Suscribimos al canal "general" SOLO si estamos en un celular (Android/iOS)
+      if (!kIsWeb) {
+        try {
+          await messaging.subscribeToTopic('general');
+          debugPrint('Suscrito al tema: general');
+        } catch (e) {
+          debugPrint('Error al suscribirse al tema: $e');
+        }
+      } else {
+        debugPrint(
+          'Suscripción a temas ignorada (No soportado en versión Web).',
+        );
+      }
     } else {
       debugPrint('El usuario denegó los permisos de notificación.');
     }

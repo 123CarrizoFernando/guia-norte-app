@@ -77,7 +77,7 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
   }
 
   // ==========================================
-  // VENTANAS EMERGENTES (NUEVO Y EDITAR)
+  // VENTANAS EMERGENTES (NUEVO Y EDITAR) - CORREGIDO
   // ==========================================
   void _mostrarDialogoCategoria({int? id, String? nombreActual}) {
     final txtController = TextEditingController(text: nombreActual);
@@ -104,7 +104,10 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
           ElevatedButton(
             onPressed: () async {
               if (txtController.text.isNotEmpty) {
-                Navigator.pop(context);
+                // 1. CAPTURAMOS EL MENSAJERO ANTES DE CERRAR LA VENTANA
+                final messenger = ScaffoldMessenger.of(context);
+                Navigator.pop(context); // Ahora sí cerramos seguro
+
                 setState(() => isLoading = true);
 
                 final url = esEditar
@@ -121,8 +124,8 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
                   }),
                 );
 
-                _cargarTodo();
-                ScaffoldMessenger.of(context).showSnackBar(
+                await _cargarTodo(); // Esperamos que recargue
+                messenger.showSnackBar(
                   SnackBar(
                     content: Text(
                       esEditar ? 'Categoría actualizada' : 'Categoría creada',
@@ -164,6 +167,7 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
           ElevatedButton(
             onPressed: () async {
               if (txtController.text.isNotEmpty) {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.pop(context);
                 setState(() => isLoading = true);
 
@@ -182,8 +186,8 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
                   }),
                 );
 
-                _cargarTodo();
-                ScaffoldMessenger.of(context).showSnackBar(
+                await _cargarTodo();
+                messenger.showSnackBar(
                   SnackBar(
                     content: Text(
                       esEditar ? 'Oficio actualizado' : 'Oficio agregado',
@@ -213,17 +217,20 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
               setState(() => isLoading = true);
+
               await http.delete(
                 Uri.parse(
                   'https://guia-norte-backend.onrender.com/api/admin/rubros/$rubroId',
                 ),
               );
-              _cargarTodo();
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Oficio eliminado')));
+
+              await _cargarTodo();
+              messenger.showSnackBar(
+                const SnackBar(content: Text('Oficio eliminado')),
+              );
             },
             child: const Text('Borrar', style: TextStyle(color: Colors.white)),
           ),
