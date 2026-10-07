@@ -5,6 +5,7 @@ import 'dart:convert';
 
 // IMPORTANTE: Asegúrate de tener este archivo creado en la misma carpeta
 import 'admin_negocios_screen.dart';
+import 'admin_categorias_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -229,11 +230,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         ),
                         title: const Text('Gestionar Categorías y Rubros'),
                         trailing: const Icon(Icons.chevron_right),
-                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Función en desarrollo...'),
-                          ),
-                        ),
+                        onTap: () {
+                          // NAVEGACIÓN A CATEGORÍAS
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const AdminCategoriasScreen(),
+                            ),
+                          );
+                        },
                       ),
                       const Divider(height: 1),
                       ListTile(
@@ -241,7 +247,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         title: const Text('Aprobar Negocios Premium'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // NAVEGACIÓN CORREGIDA
+                          // NAVEGACIÓN A PLANES
                           Navigator.push(
                             context,
                             MaterialPageRoute(
