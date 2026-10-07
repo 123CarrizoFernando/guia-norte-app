@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1073291011558-mp0m94gimp6p7j0gpp97719t77n0d91e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.guia_del_norte",
+            "certificate_hash": "8e5b4b47a38fefe0d13add71f43885f39adafacd"
+          }
+        },
+        {
           "client_id": "1073291011558-78uuqcq6inqhdvvcji25rb8c69ijliga.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,6 +37,13 @@
             {
               "client_id": "1073291011558-78uuqcq6inqhdvvcji25rb8c69ijliga.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "1073291011558-07oh735fpe4rmgthfp3otbk60k4hhrml.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.guiaDelNorte"
+              }
             }
           ]
         }
