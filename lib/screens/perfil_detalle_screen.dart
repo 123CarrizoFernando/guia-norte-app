@@ -67,9 +67,9 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       debugPrint('Error registrando clic: $e');
     }
 
-    // 2. Abrir WhatsApp
-    final telefono = widget.perfil['telefono_contacto'];
-    if (telefono == null || telefono.toString().trim().isEmpty) {
+    // 2. Abrir WhatsApp (Con filtro de limpieza de números)
+    final telefonoBruto = widget.perfil['telefono_contacto'];
+    if (telefonoBruto == null || telefonoBruto.toString().trim().isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -79,10 +79,16 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       return;
     }
 
+    // Limpiamos el número para que solo queden los números sin espacios ni guiones
+    final String telefonoLimpio = telefonoBruto.toString().replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
+
     final String mensaje =
         'Hola, vi tu perfil en la app Guía del Norte y me gustaría hacerte una consulta.';
     final Uri url = Uri.parse(
-      'https://wa.me/$telefono?text=${Uri.encodeComponent(mensaje)}',
+      'https://wa.me/$telefonoLimpio?text=${Uri.encodeComponent(mensaje)}',
     );
 
     try {
@@ -233,7 +239,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
           user = userCredential.user;
         } else {
           final googleSignIn = GoogleSignIn.instance;
-          await googleSignIn.initialize();
           final GoogleSignInAccount googleUser = await googleSignIn
               .authenticate();
           final GoogleSignInAuthentication googleAuth =

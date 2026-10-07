@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart'; // NUEVO: Para celulares nativos
+import 'package:flutter/foundation.dart'
+    show kIsWeb; // NUEVO: Para detectar web o app
 import 'package:http/http.dart' as http;
 
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart'; // NUEVA IMPORTACIÓN VITAL
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'crear_perfil_screen.dart';
 import 'main_screen.dart';
@@ -25,12 +28,33 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final provider = GoogleAuthProvider();
-      final UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithPopup(provider);
-      final User? user = userCredential.user;
+      User? user;
+
+      // LÓGICA DIVIDIDA: WEB vs CELULAR
+      if (kIsWeb) {
+        final provider = GoogleAuthProvider();
+        final UserCredential userCredential = await FirebaseAuth.instance
+            .signInWithPopup(provider);
+        user = userCredential.user;
+      } else {
+        final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+        await googleSignIn.initialize();
+        final GoogleSignInAccount googleUser =
+            await googleSignIn.authenticate();
+
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+        final AuthCredential credential = GoogleAuthProvider.credential(
+          idToken: googleAuth.idToken,
+        );
+
+        final UserCredential userCredential = await FirebaseAuth.instance
+            .signInWithCredential(credential);
+        user = userCredential.user;
+      }
 
       if (user != null) {
+        // Enlazar con nuestro backend en Render
         final url = Uri.parse(
           'https://guia-norte-backend.onrender.com/api/auth/google',
         );
@@ -48,9 +72,6 @@ class _LoginScreenState extends State<LoginScreen> {
           final data = json.decode(response.body);
           final bool tienePerfil = data['tienePerfil'];
 
-          // ==========================================
-          // LA MAGIA QUE FALTABA: GUARDAR EL ID EN MEMORIA
-          // ==========================================
           if (tienePerfil) {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setInt('profesional_id', data['usuario']['id']);
@@ -59,7 +80,6 @@ class _LoginScreenState extends State<LoginScreen> {
           if (!mounted) return;
 
           if (tienePerfil) {
-            // Ahora sí, cuando el MainScreen pregunte, encontrará el ID y mostrará el Dashboard
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
