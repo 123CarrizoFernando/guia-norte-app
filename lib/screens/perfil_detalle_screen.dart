@@ -462,413 +462,435 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ==========================================
-            // CABECERA DEL PERFIL
-            // ==========================================
-            Container(
-              color: Theme.of(context).cardColor, // Automático según el tema
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: isDark
-                            ? const Color(0xFF2A3143)
-                            : Colors.blue[50],
-                        backgroundImage: widget.perfil['logo_url'] != null
-                            ? NetworkImage(widget.perfil['logo_url'])
-                            : null,
-                        child: widget.perfil['logo_url'] == null
-                            ? Icon(
-                                Icons.store,
-                                size: 40,
-                                color: Theme.of(context).primaryColor,
-                              )
-                            : null,
-                      ),
-                      if (esPremium)
-                        Padding(
-                          padding: const EdgeInsets.all(4.0),
-                          child: Icon(
-                            Icons.verified,
-                            color: Theme.of(context).primaryColor,
-                            size: 28,
+      // ==========================================
+      // MAGIA: RefreshIndicator
+      // ==========================================
+      body: RefreshIndicator(
+        color: Theme.of(context).primaryColor,
+        backgroundColor: Theme.of(context).cardColor,
+        onRefresh: () async {
+          await fetchGaleria();
+          await fetchResenas();
+        },
+        child: SingleChildScrollView(
+          physics:
+              const AlwaysScrollableScrollPhysics(), // Clave para que funcione
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ==========================================
+              // CABECERA DEL PERFIL
+              // ==========================================
+              Container(
+                color: Theme.of(context).cardColor, // Automático según el tema
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundColor: isDark
+                              ? const Color(0xFF2A3143)
+                              : Colors.blue[50],
+                          backgroundImage: widget.perfil['logo_url'] != null
+                              ? NetworkImage(widget.perfil['logo_url'])
+                              : null,
+                          child: widget.perfil['logo_url'] == null
+                              ? Icon(
+                                  Icons.store,
+                                  size: 40,
+                                  color: Theme.of(context).primaryColor,
+                                )
+                              : null,
+                        ),
+                        if (esPremium)
+                          Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Icon(
+                              Icons.verified,
+                              color: Theme.of(context).primaryColor,
+                              size: 28,
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    widget.perfil['nombre_comercial'],
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ],
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // ==========================================
-                  // SECCIÓN: SOBRE NOSOTROS (Descripción)
-                  // ==========================================
-                  if (widget.perfil['descripcion'] != null &&
-                      widget.perfil['descripcion']
-                          .toString()
-                          .trim()
-                          .isNotEmpty) ...[
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Sobre nosotros',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
-                        ),
+                    const SizedBox(height: 16),
+                    Text(
+                      widget.perfil['nombre_comercial'],
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        widget.perfil['descripcion'],
-                        style: TextStyle(
-                          fontSize: 15,
-                          height: 1.5,
-                          color: Theme.of(context).textTheme.bodyMedium?.color,
-                        ),
-                      ),
+                      textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
-                  ],
 
-                  // Reseñas y Puntuación
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 24),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${widget.perfil['calificacion_promedio'] ?? '0.0'} (${widget.perfil['total_resenas'] ?? '0'} opiniones)',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                    // ==========================================
+                    // SECCIÓN: SOBRE NOSOTROS (Descripción)
+                    // ==========================================
+                    if (widget.perfil['descripcion'] != null &&
+                        widget.perfil['descripcion']
+                            .toString()
+                            .trim()
+                            .isNotEmpty) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Sobre nosotros',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                          ),
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          widget.perfil['descripcion'],
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.5,
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
                     ],
-                  ),
-                  const SizedBox(height: 16),
 
-                  // INDICADOR ABIERTO/CERRADO
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: abierto
-                          ? (isDark
-                                ? Colors.green.withOpacity(0.2)
-                                : Colors.green[50])
-                          : (isDark
-                                ? Colors.red.withOpacity(0.2)
-                                : Colors.red[50]),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: abierto ? Colors.green : Colors.red,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    // Reseñas y Puntuación
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          abierto ? Icons.check_circle : Icons.cancel,
-                          color: abierto ? Colors.green : Colors.red,
-                          size: 16,
-                        ),
+                        const Icon(Icons.star, color: Colors.amber, size: 24),
                         const SizedBox(width: 8),
                         Text(
-                          abierto ? 'Abierto Ahora' : 'Cerrado',
+                          '${widget.perfil['calificacion_promedio'] ?? '0.0'} (${widget.perfil['total_resenas'] ?? '0'} opiniones)',
                           style: TextStyle(
-                            color: abierto ? Colors.green : Colors.red,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
-                  // BOTÓN GIGANTE DE WHATSAPP (Suma un clic)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: _contactarWhatsApp,
-                      icon: const Icon(Icons.chat, color: Colors.white),
-                      label: const Text(
-                        'Contactar por WhatsApp',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                    // INDICADOR ABIERTO/CERRADO
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: abierto
+                            ? (isDark
+                                  ? Colors.green.withOpacity(0.2)
+                                  : Colors.green[50])
+                            : (isDark
+                                  ? Colors.red.withOpacity(0.2)
+                                  : Colors.red[50]),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: abierto ? Colors.green : Colors.red,
                         ),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(
-                          0xFF25D366,
-                        ), // Color oficial WhatsApp
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            abierto ? Icons.check_circle : Icons.cancel,
+                            color: abierto ? Colors.green : Colors.red,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            abierto ? 'Abierto Ahora' : 'Cerrado',
+                            style: TextStyle(
+                              color: abierto ? Colors.green : Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // BOTÓN GIGANTE DE WHATSAPP (Suma un clic)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: _contactarWhatsApp,
+                        icon: const Icon(Icons.chat, color: Colors.white),
+                        label: const Text(
+                          'Contactar por WhatsApp',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(
+                            0xFF25D366,
+                          ), // Color oficial WhatsApp
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  // Botones secundarios de Mapas y Compartir
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _abrirMapa,
-                          icon: Icon(
-                            Icons.location_on,
-                            color: Theme.of(context).primaryColor,
-                            size: 18,
-                          ),
-                          label: Text(
-                            'Cómo llegar',
-                            style: TextStyle(
+                    // Botones secundarios de Mapas y Compartir
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _abrirMapa,
+                            icon: Icon(
+                              Icons.location_on,
                               color: Theme.of(context).primaryColor,
+                              size: 18,
                             ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: Theme.of(context).primaryColor,
+                            label: Text(
+                              'Cómo llegar',
+                              style: TextStyle(
+                                color: Theme.of(context).primaryColor,
+                              ),
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _compartirPerfil,
-                          icon: Icon(
-                            Icons.share,
-                            color: Theme.of(context).textTheme.bodyLarge?.color,
-                            size: 18,
-                          ),
-                          label: Text(
-                            'Compartir',
-                            style: TextStyle(
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _compartirPerfil,
+                            icon: Icon(
+                              Icons.share,
                               color: Theme.of(context)
                                   .textTheme
                                   .bodyLarge
                                   ?.color,
+                              size: 18,
                             ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: isDark ? Colors.white54 : Colors.black87,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ==========================================
-            // SECCIÓN DE GALERÍA (CON VISOR PANTALLA COMPLETA)
-            // ==========================================
-            if (galeria.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text(
-                  'Trabajos Realizados',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 150,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  itemCount: galeria.length,
-                  itemBuilder: (context, index) {
-                    return GestureDetector(
-                      onTap: () {
-                        // ¡MAGIA! Abre la foto en pantalla completa con zoom
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => VisorImagenesScreen(
-                              galeria: galeria,
-                              indexInicial: index,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 12),
-                        width: 150,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          image: DecorationImage(
-                            image: NetworkImage(galeria[index]['imagen_url']),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-
-            // ==========================================
-            // SECCIÓN DE RESEÑAS
-            // ==========================================
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Opiniones de clientes',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: _verificarYMostrarModal,
-                    icon: Icon(
-                      Icons.rate_review,
-                      size: 18,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                    label: Text(
-                      'Dejar Reseña',
-                      style: TextStyle(color: Theme.of(context).primaryColor),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            isLoading
-                ? Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                  )
-                : resenas.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Center(
-                      child: Text(
-                        'Sé el primero en dejar una reseña.',
-                        style: TextStyle(
-                          color: Theme.of(context).textTheme.bodyMedium?.color,
-                        ),
-                      ),
-                    ),
-                  )
-                : ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: resenas.length,
-                    separatorBuilder: (context, index) => Divider(
-                      color: isDark ? Colors.white12 : Colors.black12,
-                    ),
-                    itemBuilder: (context, index) {
-                      final r = resenas[index];
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isDark
-                              ? const Color(0xFF2A3143)
-                              : Colors.grey[300],
-                          child: Text(
-                            r['autor'][0].toUpperCase(),
-                            style: TextStyle(
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                        ),
-                        title: Row(
-                          children: [
-                            Text(
-                              r['autor'],
+                            label: Text(
+                              'Compartir',
                               style: TextStyle(
-                                fontWeight: FontWeight.bold,
                                 color: Theme.of(context)
                                     .textTheme
                                     .bodyLarge
                                     ?.color,
                               ),
                             ),
-                            const Spacer(),
-                            Row(
-                              children: List.generate(5, (starIndex) {
-                                return Icon(
-                                  starIndex < r['calificacion']
-                                      ? Icons.star
-                                      : Icons.star_border,
-                                  size: 14,
-                                  color: Colors.amber,
-                                );
-                              }),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: isDark ? Colors.white54 : Colors.black87,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
-                          ],
+                          ),
                         ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            r['comentario'],
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.color,
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ==========================================
+              // SECCIÓN DE GALERÍA (CON VISOR PANTALLA COMPLETA)
+              // ==========================================
+              if (galeria.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    'Trabajos Realizados',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 150,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    itemCount: galeria.length,
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        onTap: () {
+                          // ¡MAGIA! Abre la foto en pantalla completa con zoom
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => VisorImagenesScreen(
+                                galeria: galeria,
+                                indexInicial: index,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 12),
+                          width: 150,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            image: DecorationImage(
+                              image: NetworkImage(galeria[index]['imagen_url']),
+                              fit: BoxFit.cover,
                             ),
                           ),
                         ),
                       );
                     },
                   ),
-            const SizedBox(height: 30),
-          ],
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              // ==========================================
+              // SECCIÓN DE RESEÑAS
+              // ==========================================
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Opiniones de clientes',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _verificarYMostrarModal,
+                      icon: Icon(
+                        Icons.rate_review,
+                        size: 18,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                      label: Text(
+                        'Dejar Reseña',
+                        style: TextStyle(color: Theme.of(context).primaryColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              isLoading
+                  ? Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    )
+                  : resenas.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Center(
+                        child: Text(
+                          'Sé el primero en dejar una reseña.',
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color,
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: resenas.length,
+                      separatorBuilder: (context, index) => Divider(
+                        color: isDark ? Colors.white12 : Colors.black12,
+                      ),
+                      itemBuilder: (context, index) {
+                        final r = resenas[index];
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: isDark
+                                ? const Color(0xFF2A3143)
+                                : Colors.grey[300],
+                            child: Text(
+                              r['autor'][0].toUpperCase(),
+                              style: TextStyle(
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          ),
+                          title: Row(
+                            children: [
+                              Text(
+                                r['autor'],
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.color,
+                                ),
+                              ),
+                              const Spacer(),
+                              Row(
+                                children: List.generate(5, (starIndex) {
+                                  return Icon(
+                                    starIndex < r['calificacion']
+                                        ? Icons.star
+                                        : Icons.star_border,
+                                    size: 14,
+                                    color: Colors.amber,
+                                  );
+                                }),
+                              ),
+                            ],
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              r['comentario'],
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.color,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+              const SizedBox(height: 30),
+            ],
+          ),
         ),
       ),
     );

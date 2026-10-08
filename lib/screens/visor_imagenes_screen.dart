@@ -28,9 +28,11 @@ class _VisorImagenesScreenState extends State<VisorImagenesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // El visor siempre queda bien en fondo negro
+      backgroundColor:
+          Colors.black, // El visor siempre queda bien en fondo negro absoluto
       appBar: AppBar(
-        backgroundColor: Colors.black.withOpacity(0.5),
+        backgroundColor:
+            Colors.transparent, // Transparente para que la foto destaque
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
@@ -39,10 +41,12 @@ class _VisorImagenesScreenState extends State<VisorImagenesScreen> {
         ),
         centerTitle: true,
       ),
-      extendBodyBehindAppBar: true, // Para que la foto ocupe toda la pantalla
+      extendBodyBehindAppBar: true,
+      // PAGEVIEW es el que permite arrastrar el dedo hacia los lados
       body: PageView.builder(
         controller: _pageController,
         itemCount: widget.galeria.length,
+        physics: const BouncingScrollPhysics(), // Deslizamiento nativo suave
         onPageChanged: (index) {
           setState(() => _currentIndex = index);
         },
@@ -50,14 +54,16 @@ class _VisorImagenesScreenState extends State<VisorImagenesScreen> {
           return InteractiveViewer(
             panEnabled: true,
             minScale: 0.5,
-            maxScale: 4.0, // Permite hacer zoom hasta 4x
+            maxScale: 4.0, // Zoom de pellizco
             child: Center(
               child: Image.network(
                 widget.galeria[index]['imagen_url'],
-                fit: BoxFit.contain, // Muestra la imagen completa sin recortar
+                fit: BoxFit.contain, // Muestra la foto sin recortarla
                 loadingBuilder: (context, child, loadingProgress) {
                   if (loadingProgress == null) return child;
-                  return const CircularProgressIndicator(color: Color(0xFF00B4D8));
+                  return const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF00B4D8)),
+                  );
                 },
               ),
             ),
