@@ -31,7 +31,7 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _verificarSesion();
-    _configurarNotificaciones(); // NUEVO: Activamos las notificaciones al inicio
+    _configurarNotificaciones();
   }
 
   // ==========================================
@@ -40,7 +40,6 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _configurarNotificaciones() async {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-    // 1. Pedimos permiso al usuario (Mostrará un cartel nativo del celular)
     NotificationSettings settings = await messaging.requestPermission(
       alert: true,
       badge: true,
@@ -50,7 +49,6 @@ class _MainScreenState extends State<MainScreen> {
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       debugPrint('Permiso de notificaciones concedido.');
 
-      // 2. Suscribimos al canal "general" SOLO si estamos en un celular (Android/iOS)
       if (!kIsWeb) {
         try {
           await messaging.subscribeToTopic('general');
@@ -87,9 +85,8 @@ class _MainScreenState extends State<MainScreen> {
 
     // Definimos qué pantalla se muestra en cada pestaña
     final List<Widget> pantallas = [
-      const HomeScreen(),
+      const HomeScreen(), // <-- AQUÍ ESTÁ TU PÁGINA PRINCIPAL
       const FavoritosScreen(),
-      // Lógica dinámica: Si hay sesión muestra el panel, si no, el login.
       profesionalId != null
           ? DashboardScreen(usuarioId: profesionalId!)
           : const LoginScreen(),
@@ -102,7 +99,6 @@ class _MainScreenState extends State<MainScreen> {
         onTap: (index) {
           setState(() {
             _currentIndex = index;
-            // Si el usuario toca "Mi Perfil", verificamos la sesión nuevamente
             if (index == 2) {
               _verificarSesion();
             }
@@ -132,7 +128,7 @@ class _MainScreenState extends State<MainScreen> {
 }
 
 // ==========================================
-// PANTALLA DE FAVORITOS (CON DISEÑO ACTUALIZADO)
+// PANTALLA DE FAVORITOS (ESTILO DARK MODE)
 // ==========================================
 class FavoritosScreen extends StatelessWidget {
   const FavoritosScreen({super.key});
@@ -146,7 +142,9 @@ class FavoritosScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[200],
+      backgroundColor: const Color(
+        0xFF0B101E,
+      ), // Fondo oscuro principal (igual al Home)
       appBar: AppBar(
         title: const Text(
           'Mis Guardados',
@@ -156,7 +154,7 @@ class FavoritosScreen extends StatelessWidget {
             color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.black, // Cabecera oscura unificada
+        backgroundColor: Colors.black,
         elevation: 0,
       ),
       body: FutureBuilder<List<dynamic>>(
@@ -164,7 +162,7 @@ class FavoritosScreen extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
-              child: CircularProgressIndicator(color: Colors.lightBlue),
+              child: CircularProgressIndicator(color: Color(0xFF00B4D8)),
             );
           }
 
@@ -178,18 +176,18 @@ class FavoritosScreen extends StatelessWidget {
                   Icon(
                     Icons.favorite_border,
                     size: 64,
-                    color: Colors.grey[400],
+                    color: Colors.white24, // Ícono atenuado
                   ),
                   const SizedBox(height: 16),
-                  Text(
+                  const Text(
                     'Aún no tienes favoritos',
-                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 18, color: Colors.white70),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'Guarda a los profesionales\npara encontrarlos rápido.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
+                    style: TextStyle(color: Colors.white54),
                   ),
                 ],
               ),
@@ -211,31 +209,44 @@ class FavoritosScreen extends StatelessWidget {
                           PerfilDetalleScreen(perfil: prof, currentUserId: 1),
                     ),
                   ).then((_) {
-                    // Refrescar la pantalla al volver por si quitó el favorito
                     (context as Element).markNeedsBuild();
                   });
                 },
-                child: Card(
-                  elevation: 1,
+                child: Container(
                   margin: const EdgeInsets.only(bottom: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1F2E), // Tarjeta oscura
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white10, // Borde sutil
+                      width: 1,
+                    ),
                   ),
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(16),
-                    leading: CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Colors.blue[50],
-                      backgroundImage: prof['logo_url'] != null
-                          ? NetworkImage(prof['logo_url'])
-                          : null,
+                    leading: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF2A3143),
+                        image: prof['logo_url'] != null
+                            ? DecorationImage(
+                                image: NetworkImage(prof['logo_url']),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
                       child: prof['logo_url'] == null
-                          ? const Icon(Icons.store, color: Colors.lightBlue)
+                          ? const Icon(Icons.store, color: Color(0xFF00B4D8))
                           : null,
                     ),
                     title: Text(
                       prof['nombre_comercial'],
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,6 +265,7 @@ class FavoritosScreen extends StatelessWidget {
                                   '0.0',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
+                                color: Colors.amber,
                               ),
                             ),
                           ],
@@ -262,7 +274,7 @@ class FavoritosScreen extends StatelessWidget {
                     ),
                     trailing: const Icon(
                       Icons.chevron_right,
-                      color: Colors.grey,
+                      color: Colors.white54,
                     ),
                   ),
                 ),

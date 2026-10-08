@@ -39,11 +39,11 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     fetchResenas();
     fetchGaleria();
     verificarSiEsFavorito();
-    registrarVisita(); // NUEVO: Registra la visita al abrir el perfil
+    registrarVisita();
   }
 
   // ==========================================
-  // LÓGICA DE ESTADÍSTICAS (NUEVO)
+  // LÓGICA DE ESTADÍSTICAS
   // ==========================================
   Future<void> registrarVisita() async {
     try {
@@ -99,7 +99,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   }
 
   // ==========================================
-  // LÓGICA DE HORARIOS (NUEVO)
+  // LÓGICA DE HORARIOS
   // ==========================================
   bool _estaAbierto() {
     final String apertura = widget.perfil['hora_apertura'] ?? '08:00';
@@ -138,7 +138,9 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       );
       final response = await http.get(url);
       if (response.statusCode == 200) {
-        setState(() => galeria = json.decode(response.body));
+        if (mounted) {
+          setState(() => galeria = json.decode(response.body));
+        }
       }
     } catch (e) {
       debugPrint('Error cargando galería: $e');
@@ -148,12 +150,14 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   Future<void> verificarSiEsFavorito() async {
     final prefs = await SharedPreferences.getInstance();
     final List<String> favoritosStr = prefs.getStringList('favoritos') ?? [];
-    setState(() {
-      isFavorite = favoritosStr.any((item) {
-        final Map<String, dynamic> fav = json.decode(item);
-        return fav['id'] == widget.perfil['id'];
+    if (mounted) {
+      setState(() {
+        isFavorite = favoritosStr.any((item) {
+          final Map<String, dynamic> fav = json.decode(item);
+          return fav['id'] == widget.perfil['id'];
+        });
       });
-    });
+    }
   }
 
   Future<void> alternarFavorito() async {
@@ -168,18 +172,19 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       favoritosStr.add(json.encode(widget.perfil));
     }
     await prefs.setStringList('favoritos', favoritosStr);
-    setState(() => isFavorite = !isFavorite);
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isFavorite ? 'Guardado en Favoritos' : 'Eliminado de Favoritos',
+    if (mounted) {
+      setState(() => isFavorite = !isFavorite);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isFavorite ? 'Guardado en Favoritos' : 'Eliminado de Favoritos',
+          ),
+          backgroundColor: isFavorite ? Colors.green : Colors.redAccent,
+          duration: const Duration(seconds: 2),
         ),
-        backgroundColor: isFavorite ? Colors.green : Colors.redAccent,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
+    }
   }
 
   void _compartirPerfil() {
@@ -218,13 +223,17 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       );
       final response = await http.get(url);
       if (response.statusCode == 200) {
-        setState(() {
-          resenas = json.decode(response.body);
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            resenas = json.decode(response.body);
+            isLoading = false;
+          });
+        }
       }
     } catch (e) {
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -239,8 +248,9 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
           user = userCredential.user;
         } else {
           final googleSignIn = GoogleSignIn.instance;
-          final GoogleSignInAccount googleUser = await googleSignIn
+          final GoogleSignInAccount? googleUser = await googleSignIn
               .authenticate();
+          if (googleUser == null) return; // Si el usuario cancela
           final GoogleSignInAuthentication googleAuth =
               await googleUser.authentication;
           final AuthCredential credential = GoogleAuthProvider.credential(
@@ -251,10 +261,11 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
           user = userCredential.user;
         }
       } catch (e) {
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Error al iniciar sesión')),
           );
+        }
         return;
       }
     }
@@ -273,13 +284,15 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
             'nombre_completo': user.displayName ?? 'Cliente',
           }),
         );
-        if (response.statusCode == 200) {
+        if (response.statusCode == 200 || response.statusCode == 201) {
           final data = json.decode(response.body);
           final int dbUserId = data['usuario_id'];
           if (!mounted) return;
           _mostrarModalResena(dbUserId);
         }
-      } catch (e) {}
+      } catch (e) {
+        debugPrint('Error autenticando cliente en DB: $e');
+      }
     }
   }
 
@@ -308,7 +321,9 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
           const SnackBar(content: Text('¡Gracias por tu reseña!')),
         );
       }
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('Error enviando reseña: $e');
+    }
   }
 
   void _mostrarModalResena(int usuarioIdDb) {
@@ -400,6 +415,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   @override
   Widget build(BuildContext context) {
     final bool abierto = _estaAbierto();
+    final bool esPremium = widget.perfil['plan_id'] == 3;
 
     return Scaffold(
       backgroundColor: Colors.grey[200],
@@ -433,36 +449,77 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.blue[50],
-                    backgroundImage: widget.perfil['logo_url'] != null
-                        ? NetworkImage(widget.perfil['logo_url'])
-                        : null,
-                    child: widget.perfil['logo_url'] == null
-                        ? const Icon(
-                            Icons.store,
-                            size: 40,
-                            color: Colors.lightBlue,
-                          )
-                        : null,
+                  Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.blue[50],
+                        backgroundImage: widget.perfil['logo_url'] != null
+                            ? NetworkImage(widget.perfil['logo_url'])
+                            : null,
+                        child: widget.perfil['logo_url'] == null
+                            ? const Icon(
+                                Icons.store,
+                                size: 40,
+                                color: Colors.lightBlue,
+                              )
+                            : null,
+                      ),
+                      if (esPremium)
+                        const Padding(
+                          padding: EdgeInsets.all(4.0),
+                          child: Icon(
+                            Icons.verified,
+                            color: Colors.blue,
+                            size: 28,
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   Text(
                     widget.perfil['nombre_comercial'],
                     style: const TextStyle(
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.perfil['descripcion'],
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
+
+                  // ==========================================
+                  // SECCIÓN: SOBRE NOSOTROS (Descripción Segura)
+                  // ==========================================
+                  if (widget.perfil['descripcion'] != null &&
+                      widget.perfil['descripcion']
+                          .toString()
+                          .trim()
+                          .isNotEmpty) ...[
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Sobre nosotros',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        widget.perfil['descripcion'],
+                        style: const TextStyle(
+                          fontSize: 15,
+                          height: 1.5,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
 
                   // Reseñas y Puntuación
                   Row(

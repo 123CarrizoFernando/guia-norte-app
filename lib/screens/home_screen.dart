@@ -3,12 +3,12 @@ import 'package:http/http.dart' as http;
 
 import 'dart:convert';
 
-import 'package:firebase_auth/firebase_auth.dart'; // Para verificar si eres el administrador
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'rubros_screen.dart';
 import 'resultados_busqueda_screen.dart';
 import 'perfil_detalle_screen.dart';
-import 'admin_dashboard_screen.dart'; // La pantalla secreta de admin
+import 'admin_dashboard_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -55,8 +55,10 @@ class _HomeScreenState extends State<HomeScreen> {
         Uri.parse('https://guia-norte-backend.onrender.com/api/destacados'),
       );
       if (response.statusCode == 200) {
+        final List<dynamic> perfilesTotales = json.decode(response.body);
+
         setState(() {
-          destacados = json.decode(response.body);
+          destacados = perfilesTotales.where((p) => p['plan_id'] == 3).toList();
         });
       }
     } catch (e) {
@@ -75,15 +77,50 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // ==========================================
+  // LÓGICA DE ÍCONOS INTELIGENTES
+  // ==========================================
+  IconData _obtenerIconoInteligente(String nombre) {
+    String n = nombre.toLowerCase();
+    n = n
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u');
+
+    if (n.contains('salud') || n.contains('medicina') || n.contains('medico'))
+      return Icons.medical_services;
+    if (n.contains('construccion') ||
+        n.contains('obra') ||
+        n.contains('albanil'))
+      return Icons.construction;
+    if (n.contains('mecanic') || n.contains('auto') || n.contains('moto'))
+      return Icons.car_repair;
+    if (n.contains('comida') || n.contains('gastro')) return Icons.restaurant;
+    if (n.contains('educacion') || n.contains('clase')) return Icons.school;
+    if (n.contains('belleza') || n.contains('estetica') || n.contains('pelo'))
+      return Icons.face_retouching_natural;
+    if (n.contains('tecnologia') || n.contains('pc') || n.contains('celular'))
+      return Icons.computer;
+    if (n.contains('hogar') || n.contains('limpieza'))
+      return Icons.cleaning_services;
+    if (n.contains('legal') || n.contains('abogado')) return Icons.gavel;
+    if (n.contains('ropa') || n.contains('indumentaria'))
+      return Icons.checkroom;
+
+    return Icons.category; // Ícono por defecto
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[200],
-
+      backgroundColor: const Color(0xFF0B101E), // Fondo oscuro principal
       // ==========================================
-      // MENÚ LATERAL (HAMBURGUESA) CON MODO ADMIN
+      // MENÚ LATERAL (HAMBURGUESA)
       // ==========================================
       drawer: Drawer(
+        backgroundColor: const Color(0xFF1A1F2E),
         child: Column(
           children: [
             Container(
@@ -95,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   CircleAvatar(
                     radius: 30,
-                    backgroundColor: Colors.lightBlue,
+                    backgroundColor: Color(0xFF00B4D8),
                     child: Icon(Icons.person, color: Colors.white, size: 35),
                   ),
                   SizedBox(height: 12),
@@ -111,27 +148,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-
-            // ==========================================
-            // BOTÓN SECRETO DE SÚPER ADMINISTRADOR
-            // ==========================================
-            // IMPORTANTE: Cambia 'tu.correo@gmail.com' por el tuyo real
             if (FirebaseAuth.instance.currentUser?.email ==
                 'svfdfacilitador@gmail.com')
               ListTile(
-                tileColor:
-                    Colors.amber[50], // Color de advertencia para que destaque
+                tileColor: Colors.amber.withOpacity(0.1),
                 leading: const Icon(
                   Icons.admin_panel_settings,
                   color: Colors.amber,
                 ),
                 title: const Text(
                   'Panel de Control Admin',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber,
+                  ),
                 ),
-                trailing: const Icon(Icons.chevron_right),
+                trailing: const Icon(Icons.chevron_right, color: Colors.amber),
                 onTap: () {
-                  Navigator.pop(context); // Cierra el menú lateral primero
+                  Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -143,19 +177,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
             Expanded(
               child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF00B4D8),
+                      ),
+                    )
                   : ListView.builder(
                       padding: EdgeInsets.zero,
                       itemCount: categorias.length,
                       itemBuilder: (context, index) {
                         final cat = categorias[index];
                         return ListTile(
-                          leading: const Icon(
-                            Icons.category,
-                            color: Colors.black54,
+                          leading: Icon(
+                            _obtenerIconoInteligente(cat['nombre']),
+                            color: Colors.white70,
                           ),
-                          title: Text(cat['nombre']),
-                          trailing: const Icon(Icons.chevron_right, size: 16),
+                          title: Text(
+                            cat['nombre'],
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          trailing: const Icon(
+                            Icons.chevron_right,
+                            size: 16,
+                            color: Colors.white54,
+                          ),
                           onTap: () {
                             Navigator.pop(context);
                             Navigator.push(
@@ -177,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
 
       // ==========================================
-      // BARRA SUPERIOR CON BUSCADOR INTEGRADO
+      // BARRA SUPERIOR
       // ==========================================
       appBar: AppBar(
         backgroundColor: Colors.black,
@@ -198,7 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: InputDecoration(
               hintText: 'Estoy buscando en Tartagal...',
               hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-              prefixIcon: const Icon(Icons.search, color: Colors.lightBlue),
+              prefixIcon: const Icon(Icons.search, color: Color(0xFF00B4D8)),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
             ),
@@ -207,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
 
       // ==========================================
-      // CUERPO DE LA APP (SCROLL HACIA ABAJO)
+      // CUERPO DE LA APP
       // ==========================================
       body: SingleChildScrollView(
         child: Column(
@@ -232,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Icon(
                       Icons.campaign,
                       size: 150,
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withOpacity(0.05),
                     ),
                   ),
                   const Padding(
@@ -254,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           'Encuentra confianza y calidad.',
                           style: TextStyle(
-                            color: Colors.lightBlue,
+                            color: Color(0xFF00B4D8),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -308,9 +353,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ],
                               ),
-                              child: const Icon(
-                                Icons.category,
-                                color: Colors.lightBlue,
+                              child: Icon(
+                                _obtenerIconoInteligente(cat['nombre']),
+                                color: const Color(0xFF00B4D8),
                                 size: 28,
                               ),
                             ),
@@ -322,7 +367,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 11,
-                                color: Colors.black87,
+                                color: Colors
+                                    .white, // Texto ajustado para Dark Mode
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -342,7 +388,11 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
                 'Destacados en Tartagal',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ), // Texto en blanco
               ),
             ),
             const SizedBox(height: 12),
@@ -350,7 +400,12 @@ class _HomeScreenState extends State<HomeScreen> {
             destacados.isEmpty
                 ? const Padding(
                     padding: EdgeInsets.all(20.0),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: Center(
+                      child: Text(
+                        '¡Nuevos profesionales destacados muy pronto!',
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                    ),
                   )
                 : ListView.builder(
                     shrinkWrap: true,
@@ -359,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemCount: destacados.length,
                     itemBuilder: (context, index) {
                       final prof = destacados[index];
-                      final bool isPremium = prof['nivel'] == 3;
+                      final bool isPremium = prof['plan_id'] == 3;
 
                       return GestureDetector(
                         onTap: () {
@@ -373,98 +428,171 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           );
                         },
-                        child: Card(
-                          elevation: isPremium ? 3 : 1,
-                          margin: const EdgeInsets.only(bottom: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: isPremium
-                                ? const BorderSide(
-                                    color: Colors.lightBlue,
-                                    width: 2,
-                                  )
-                                : BorderSide.none,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1A1F2E),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isPremium
+                                  ? const Color(0xFF00B4D8).withOpacity(0.5)
+                                  : Colors.transparent,
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 30,
-                                  backgroundColor: Colors.blue[50],
-                                  backgroundImage: prof['logo_url'] != null
-                                      ? NetworkImage(prof['logo_url'])
-                                      : null,
-                                  child: prof['logo_url'] == null
-                                      ? const Icon(
-                                          Icons.store,
-                                          color: Colors.lightBlue,
-                                        )
-                                      : null,
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
+                          child: Stack(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 60,
+                                      height: 60,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: const Color(0xFF2A3143),
+                                        image: prof['logo_url'] != null
+                                            ? DecorationImage(
+                                                image: NetworkImage(
+                                                  prof['logo_url'],
+                                                ),
+                                                fit: BoxFit.cover,
+                                              )
+                                            : null,
+                                      ),
+                                      child: prof['logo_url'] == null
+                                          ? const Icon(
+                                              Icons.store,
+                                              color: Color(0xFF00B4D8),
+                                              size: 30,
+                                            )
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Expanded(
-                                            child: Text(
-                                              prof['nombre_comercial'] ??
-                                                  'Sin nombre',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  prof['nombre_comercial'] ??
+                                                      'Sin nombre',
+                                                  style: const TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
                                               ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
+                                              const SizedBox(width: 4),
+                                              const Icon(
+                                                Icons.verified,
+                                                color: Color(0xFF00B4D8),
+                                                size: 20,
+                                              ),
+                                            ],
                                           ),
-                                          if (isPremium)
-                                            const Icon(
-                                              Icons.verified,
-                                              color: Colors.lightBlue,
-                                              size: 18,
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        prof['descripcion'] ?? '',
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 13,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.star,
-                                            color: Colors.amber,
-                                            size: 14,
-                                          ),
-                                          const SizedBox(width: 4),
+                                          const SizedBox(height: 6),
                                           Text(
-                                            prof['calificacion_promedio']
-                                                    ?.toString() ??
-                                                '0.0',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
+                                            prof['descripcion'] != null &&
+                                                    prof['descripcion']
+                                                        .toString()
+                                                        .isNotEmpty
+                                                ? prof['descripcion']
+                                                : 'Profesional verificado en Tartagal',
+                                            style: TextStyle(
+                                              color: Colors.grey[400],
+                                              fontSize: 13,
+                                              height: 1.4,
                                             ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.star,
+                                                color: Colors.amber,
+                                                size: 14,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${prof['calificacion_promedio'] ?? '5.0'}',
+                                                style: const TextStyle(
+                                                  color: Colors.amber,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                '• ${prof['total_resenas'] ?? '0'} Trabajos',
+                                                style: TextStyle(
+                                                  color: Colors.grey[500],
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
-                                    ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isPremium)
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF00B4D8),
+                                      borderRadius: BorderRadius.only(
+                                        bottomLeft: Radius.circular(12),
+                                        topRight: Radius.circular(16),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.bolt,
+                                          color: Colors.black87,
+                                          size: 14,
+                                        ),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Destacado',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ],
-                            ),
+                            ],
                           ),
                         ),
                       );
