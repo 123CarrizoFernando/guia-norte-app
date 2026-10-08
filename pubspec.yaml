@@ -40,5 +40,8 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: false
-  image_path: "assets/icono.png"
+  image_path: "assets/logo_frente.png"
   min_sdk_android: 21
+  # CONFIGURACIÓN MAGICA PARA ANDROID:
+  adaptive_icon_background: "#0B101E" # Aquí pones tu color oscuro de fondo (Dark Mode)
+  adaptive_icon_foreground: "assets/logo_frente.png" # La imagen transparente
