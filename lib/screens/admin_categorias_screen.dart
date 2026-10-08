@@ -50,29 +50,42 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
   }
 
   // ==========================================
-  // LÓGICA DE ÍCONOS INTELIGENTES
+  // LÓGICA DE ÍCONOS INTELIGENTES (A PRUEBA DE TILDES)
   // ==========================================
   IconData _obtenerIconoInteligente(String nombre) {
-    final n = nombre.toLowerCase();
-    if (n.contains('salud') || n.contains('medicina') || n.contains('médico'))
+    // 1. Convertimos a minúsculas
+    String n = nombre.toLowerCase();
+
+    // 2. Le quitamos todas las tildes para evitar errores de tipeo
+    n = n
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u');
+
+    // 3. Comparamos con las palabras limpias (sin tildes)
+    if (n.contains('salud') || n.contains('medicina') || n.contains('medico'))
       return Icons.medical_services;
-    if (n.contains('construcción') ||
+    if (n.contains('construccion') ||
         n.contains('obra') ||
-        n.contains('albañil'))
+        n.contains('albanil'))
       return Icons.construction;
-    if (n.contains('mecánica') || n.contains('auto') || n.contains('moto'))
+    // Buscamos "mecanic" para que atrape mecanica, mecanico, etc.
+    if (n.contains('mecanic') || n.contains('auto') || n.contains('moto'))
       return Icons.car_repair;
     if (n.contains('comida') || n.contains('gastro')) return Icons.restaurant;
-    if (n.contains('educación') || n.contains('clase')) return Icons.school;
-    if (n.contains('belleza') || n.contains('estética') || n.contains('pelo'))
+    if (n.contains('educacion') || n.contains('clase')) return Icons.school;
+    if (n.contains('belleza') || n.contains('estetica') || n.contains('pelo'))
       return Icons.face_retouching_natural;
-    if (n.contains('tecnología') || n.contains('pc') || n.contains('celular'))
+    if (n.contains('tecnologia') || n.contains('pc') || n.contains('celular'))
       return Icons.computer;
     if (n.contains('hogar') || n.contains('limpieza'))
       return Icons.cleaning_services;
     if (n.contains('legal') || n.contains('abogado')) return Icons.gavel;
     if (n.contains('ropa') || n.contains('indumentaria'))
       return Icons.checkroom;
+
     return Icons.folder; // Ícono por defecto
   }
 
