@@ -53,39 +53,38 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     // 1. Abrimos la galería
     final XFile? imagen = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality:
-          100, // Mejor calidad inicial para que el recorte no se vea borroso
+      imageQuality: 100,
     );
 
     if (imagen != null) {
       // 2. Abrimos la pantalla de recorte
       final CroppedFile? croppedFile = await ImageCropper().cropImage(
         sourcePath: imagen.path,
-        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1), // Obligamos a que sea un cuadrado perfecto (calza ideal en el círculo)
+        aspectRatio: const CropAspectRatio(
+          ratioX: 1,
+          ratioY: 1,
+        ), // Obligamos a que sea un cuadrado perfecto
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Ajustar Logo',
-            toolbarColor: Colors.black, // Estilo Dark Mode
-            toolbarWidgetColor: const Color(0xFF00B4D8), // Acentos celestes
+            toolbarColor: Colors.black,
+            toolbarWidgetColor: const Color(0xFF00B4D8),
             initAspectRatio: CropAspectRatioPreset.square,
-            lockAspectRatio:
-                true, // No dejamos que hagan rectángulos, solo cuadrados
+            lockAspectRatio: true,
             hideBottomControls: false,
           ),
           IOSUiSettings(title: 'Ajustar Logo', aspectRatioLockEnabled: true),
+          // 3. CONFIGURACIÓN WEB SIMPLIFICADA (Libre de errores)
           WebUiSettings(context: context),
         ],
       );
 
-      // 3. Si el usuario recortó y le dio a "Aceptar", guardamos la imagen final
+      // 4. Guardamos la imagen final
       if (croppedFile != null) {
         final bytes = await croppedFile.readAsBytes();
         setState(() {
-          _imagenSeleccionada = XFile(
-            croppedFile.path,
-          ); // Pasamos el archivo recortado
-          _imagenBytes =
-              bytes; // Guardamos los bytes para mostrarlo al instante
+          _imagenSeleccionada = XFile(croppedFile.path);
+          _imagenBytes = bytes;
         });
       }
     }
@@ -94,7 +93,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   Future<String?> _subirImagenACloudinary() async {
     if (_imagenSeleccionada == null || _imagenBytes == null) return null;
     try {
-      const cloudName = 'TU_CLOUD_NAME'; // RECUERDA PONER TU CLOUD NAME AQUÍ
+      // Reutilizamos el cloudName de tu galería para unificar todo
+      const cloudName = 'ymlcqawz';
       final url = Uri.parse(
         'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
       );
@@ -167,6 +167,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
         title: const Text('Editar Datos'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
+        elevation: 1,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -270,7 +271,14 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                     ),
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : const Text(
                           'Guardar Cambios',
                           style: TextStyle(
