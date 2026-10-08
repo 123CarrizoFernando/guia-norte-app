@@ -9,6 +9,8 @@ import 'package:image_picker/image_picker.dart';
 
 import 'editar_perfil_screen.dart';
 import 'main_screen.dart';
+import 'visor_imagenes_screen.dart';
+import '../main.dart'; // Importa la variable themeNotifier
 
 class DashboardScreen extends StatefulWidget {
   final int usuarioId;
@@ -119,33 +121,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Detectamos si el tema actual es oscuro
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0B101E), // Fondo oscuro principal
+      backgroundColor: Theme.of(context)
+          .scaffoldBackgroundColor, // Se adapta al tema
       appBar: AppBar(
         title: const Text(
           'Mi Panel',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0,
+        // Ya no ponemos color de fondo fijo, lo controla main.dart
         actions: [
+          // ==========================================
+          // BOTÓN PARA CAMBIAR TEMA
+          // ==========================================
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: Icon(
+              isDark ? Icons.light_mode : Icons.dark_mode,
+              color: Theme.of(context).primaryColor,
+            ),
+            onPressed: () {
+              themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
             onPressed: _cerrarSesion,
             tooltip: 'Cerrar Sesión',
           ),
         ],
       ),
       body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF00B4D8)),
+          ? Center(
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
+              ),
             )
           : perfilData == null
-          ? const Center(
+          ? Center(
               child: Text(
                 'No se encontró el perfil.',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
               ),
             )
           : SingleChildScrollView(
@@ -154,12 +174,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // PANEL DE ESTADÍSTICAS
-                  const Text(
+                  Text(
                     'Rendimiento de mi Negocio',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -169,9 +189,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1A1F2E),
+                            color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white10),
+                            border: Border.all(
+                              color: isDark ? Colors.white10 : Colors.black12,
+                            ),
                           ),
                           child: Column(
                             children: [
@@ -183,16 +205,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 '${perfilData!['visitas_perfil'] ?? 0}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.color,
                                 ),
                               ),
-                              const Text(
+                              Text(
                                 'Visitas al perfil',
                                 style: TextStyle(
-                                  color: Colors.white54,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color,
                                   fontSize: 12,
                                 ),
                               ),
@@ -205,9 +233,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1A1F2E),
+                            color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white10),
+                            border: Border.all(
+                              color: isDark ? Colors.white10 : Colors.black12,
+                            ),
                           ),
                           child: Column(
                             children: [
@@ -219,16 +249,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 '${perfilData!['clics_whatsapp'] ?? 0}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.color,
                                 ),
                               ),
-                              const Text(
+                              Text(
                                 'Clics a WhatsApp',
                                 style: TextStyle(
-                                  color: Colors.white54,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color,
                                   fontSize: 12,
                                 ),
                               ),
@@ -244,9 +280,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Container(
                     padding: const EdgeInsets.all(20.0),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A1F2E),
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white10),
+                      border: Border.all(
+                        color: isDark ? Colors.white10 : Colors.black12,
+                      ),
+                      boxShadow: [
+                        if (!isDark)
+                          const BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                      ],
                     ),
                     child: Column(
                       children: [
@@ -255,7 +301,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           height: 80,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFF2A3143),
+                            color: isDark
+                                ? const Color(0xFF2A3143)
+                                : Colors.grey[200],
                             image: perfilData!['logo_url'] != null
                                 ? DecorationImage(
                                     image: NetworkImage(
@@ -266,28 +314,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 : null,
                           ),
                           child: perfilData!['logo_url'] == null
-                              ? const Icon(
+                              ? Icon(
                                   Icons.store,
                                   size: 40,
-                                  color: Color(0xFF00B4D8),
+                                  color: Theme.of(context).primaryColor,
                                 )
                               : null,
                         ),
                         const SizedBox(height: 16),
                         Text(
                           perfilData!['nombre_comercial'],
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
                           ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Horario: ${perfilData!['hora_apertura'] ?? '08:00'} a ${perfilData!['hora_cierre'] ?? '18:00'}',
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -302,15 +353,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0B101E),
+                              color: isDark
+                                  ? const Color(0xFF0B101E)
+                                  : Colors.grey[100],
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               perfilData!['descripcion'],
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.white70,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.color,
                                 height: 1.4,
                               ),
                             ),
@@ -344,16 +400,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 cargarPerfilYGaleria();
                               }
                             },
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.edit,
-                              color: Color(0xFF00B4D8),
+                              color: Theme.of(context).primaryColor,
                             ),
-                            label: const Text(
+                            label: Text(
                               'Editar mis datos',
-                              style: TextStyle(color: Color(0xFF00B4D8)),
+                              style: TextStyle(
+                                color: Theme.of(context).primaryColor,
+                              ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFF00B4D8)),
+                              side: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -369,33 +429,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Mi Portafolio',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                         ),
                       ),
                       isUploading
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 20,
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Color(0xFF00B4D8),
+                                color: Theme.of(context).primaryColor,
                               ),
                             )
                           : TextButton.icon(
                               onPressed: _subirFotoGaleria,
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.add_a_photo,
-                                color: Color(0xFF00B4D8),
+                                color: Theme.of(context).primaryColor,
                                 size: 18,
                               ),
-                              label: const Text(
+                              label: Text(
                                 'Añadir foto',
-                                style: TextStyle(color: Color(0xFF00B4D8)),
+                                style: TextStyle(
+                                  color: Theme.of(context).primaryColor,
+                                ),
                               ),
                             ),
                     ],
@@ -405,17 +467,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ? Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1A1F2E),
+                            color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.white10,
+                              color: isDark ? Colors.white10 : Colors.black12,
                               style: BorderStyle.solid,
                             ),
                           ),
-                          child: const Center(
+                          child: Center(
                             child: Text(
                               'Aún no has subido fotos de tus trabajos.',
-                              style: TextStyle(color: Colors.white54),
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.color,
+                              ),
                             ),
                           ),
                         )
@@ -425,16 +492,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             scrollDirection: Axis.horizontal,
                             itemCount: miGaleria.length,
                             itemBuilder: (context, index) {
-                              return Container(
-                                margin: const EdgeInsets.only(right: 12),
-                                width: 120,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  image: DecorationImage(
-                                    image: NetworkImage(
-                                      miGaleria[index]['imagen_url'],
+                              return GestureDetector(
+                                onTap: () {
+                                  // Abre la foto en pantalla completa
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => VisorImagenesScreen(
+                                        galeria: miGaleria,
+                                        indexInicial: index,
+                                      ),
                                     ),
-                                    fit: BoxFit.cover,
+                                  );
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.only(right: 12),
+                                  width: 150,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    image: DecorationImage(
+                                      image: NetworkImage(
+                                        miGaleria[index]['imagen_url'],
+                                      ),
+                                      fit: BoxFit.cover,
+                                    ),
                                   ),
                                 ),
                               );
@@ -447,9 +528,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Container(
                     padding: const EdgeInsets.all(20.0),
                     decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: isDark ? Colors.black : Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white24),
+                      border: Border.all(
+                        color: isDark ? Colors.white24 : Colors.black12,
+                      ),
+                      boxShadow: [
+                        if (!isDark)
+                          const BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -457,10 +548,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Plan Actual',
                               style: TextStyle(
-                                color: Colors.white54,
+                                color: isDark ? Colors.white54 : Colors.black54,
                                 fontSize: 14,
                               ),
                             ),
@@ -488,7 +579,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ? Colors.amber
                                       : (perfilData!['plan_id'] == 2
                                             ? Colors.lightBlue
-                                            : Colors.white),
+                                            : (isDark
+                                                  ? Colors.white
+                                                  : Colors.black87)),
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
                                 ),
@@ -500,19 +593,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                         // SI NO ES PREMIUM (PUEDE SER BÁSICO O MEDIO)
                         if (perfilData!['plan_id'] != 3) ...[
-                          const Text(
+                          Text(
                             '¡Destaca tu negocio!',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: isDark ? Colors.white : Colors.black87,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                          Text(
                             'Mejora tu plan para conseguir más clientes en Tartagal.',
                             style: TextStyle(
-                              color: Colors.white70,
+                              color: isDark ? Colors.white70 : Colors.black54,
                               fontSize: 14,
                             ),
                           ),
@@ -587,9 +680,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                          Text(
                             'Actualmente disfrutas del máximo posicionamiento en las búsquedas.',
-                            style: TextStyle(color: Colors.white70),
+                            style: TextStyle(
+                              color: isDark ? Colors.white70 : Colors.black54,
+                            ),
                           ),
                         ],
                       ],

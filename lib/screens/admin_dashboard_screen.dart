@@ -6,6 +6,7 @@ import 'dart:convert';
 // IMPORTANTE: Asegúrate de tener este archivo creado en la misma carpeta
 import 'admin_negocios_screen.dart';
 import 'admin_categorias_screen.dart';
+import '../main.dart'; // Importa la variable themeNotifier
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});

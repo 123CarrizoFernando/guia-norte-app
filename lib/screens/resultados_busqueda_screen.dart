@@ -48,29 +48,40 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // Adaptativo
       appBar: AppBar(
         title: Text(
           'Resultados para "${widget.query}"',
           style: const TextStyle(fontSize: 16),
         ),
-        backgroundColor: Colors.white,
+        // Colores controlados por main.dart
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
+              ),
+            )
           : profesionales.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+                  Icon(
+                    Icons.search_off,
+                    size: 64,
+                    color: isDark ? Colors.white24 : Colors.black26,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'No encontramos resultados para "${widget.query}"',
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
                   ),
                 ],
               ),
@@ -93,13 +104,19 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                     );
                   },
                   child: Card(
+                    color: Theme.of(context).cardColor, // Adaptativo
                     elevation: isPremium ? 4 : 1,
                     margin: const EdgeInsets.only(bottom: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                       side: isPremium
-                          ? const BorderSide(color: Colors.blueAccent, width: 2)
-                          : BorderSide.none,
+                          ? BorderSide(
+                              color: Theme.of(context).primaryColor,
+                              width: 2,
+                            )
+                          : BorderSide(
+                              color: isDark ? Colors.white10 : Colors.black12,
+                            ),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -111,14 +128,16 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                             children: [
                               CircleAvatar(
                                 radius: 24,
-                                backgroundColor: Colors.blue[50],
+                                backgroundColor: isDark
+                                    ? const Color(0xFF2A3143)
+                                    : Colors.blue[50],
                                 backgroundImage: prof['logo_url'] != null
                                     ? NetworkImage(prof['logo_url'])
                                     : null,
                                 child: prof['logo_url'] == null
-                                    ? const Icon(
+                                    ? Icon(
                                         Icons.store,
-                                        color: Colors.blueAccent,
+                                        color: Theme.of(context).primaryColor,
                                       )
                                     : null,
                               ),
@@ -135,9 +154,13 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                                           child: Text(
                                             prof['nombre_comercial'] ??
                                                 'Sin nombre',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
+                                              color: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyLarge
+                                                  ?.color,
                                             ),
                                           ),
                                         ),
@@ -148,15 +171,17 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                                               vertical: 4,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: Colors.blueAccent
+                                              color: Theme.of(context)
+                                                  .primaryColor
                                                   .withOpacity(0.1),
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                             ),
-                                            child: const Text(
+                                            child: Text(
                                               'DESTACADO',
                                               style: TextStyle(
-                                                color: Colors.blueAccent,
+                                                color: Theme.of(context)
+                                                    .primaryColor,
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -180,6 +205,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                                               : '0.0',
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
+                                            color: Colors.amber,
                                           ),
                                         ),
                                       ],
@@ -192,7 +218,12 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                           const SizedBox(height: 12),
                           Text(
                             prof['descripcion'] ?? 'Sin descripción.',
-                            style: TextStyle(color: Colors.grey[700]),
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.color,
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),

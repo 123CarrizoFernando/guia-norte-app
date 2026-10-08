@@ -50,36 +50,43 @@ class _RubrosScreenState extends State<RubrosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey[200], // Fondo claro estilo ML
+      backgroundColor: Theme.of(context)
+          .scaffoldBackgroundColor, // Se adapta al tema
       appBar: AppBar(
         title: Text(
           widget.categoriaNombre,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: Colors.white,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        backgroundColor: Colors.black, // Barra superior negra
+        // Colores controlados por main.dart
         elevation: 0,
         scrolledUnderElevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white), // Flecha blanca
       ),
       body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.lightBlue),
+          ? Center(
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
+              ),
             )
           : rubros.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
+                  Icon(
+                    Icons.inbox,
+                    size: 64,
+                    color: isDark ? Colors.white24 : Colors.black26,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Próximamente más servicios',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                      fontSize: 16,
+                    ),
                   ),
                 ],
               ),
@@ -90,10 +97,14 @@ class _RubrosScreenState extends State<RubrosScreen> {
               itemBuilder: (context, index) {
                 final rubro = rubros[index];
                 return Card(
+                  color: Theme.of(context).cardColor, // Se adapta al tema
                   elevation: 1,
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: isDark ? Colors.white10 : Colors.black12,
+                    ),
                   ),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(
@@ -103,30 +114,27 @@ class _RubrosScreenState extends State<RubrosScreen> {
                     leading: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.lightBlue.withOpacity(
-                          0.1,
-                        ), // Círculo celeste tenue
+                        color: Theme.of(context).primaryColor.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.work_outline,
-                        color: Colors.lightBlue,
-                      ), // Ícono celeste
+                        color: Theme.of(context).primaryColor,
+                      ),
                     ),
                     title: Text(
                       rubro['nombre'],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: Colors.black87,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
-                    trailing: const Icon(
+                    trailing: Icon(
                       Icons.chevron_right,
-                      color: Colors.grey,
+                      color: isDark ? Colors.white54 : Colors.black54,
                     ),
                     onTap: () {
-                      // Navegamos a la pantalla de resultados que ya rediseñamos antes
                       Navigator.push(
                         context,
                         MaterialPageRoute(

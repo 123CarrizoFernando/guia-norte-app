@@ -10,6 +10,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'visor_imagenes_screen.dart';
+
 class PerfilDetalleScreen extends StatefulWidget {
   final Map<String, dynamic> perfil;
   final int currentUserId;
@@ -57,7 +59,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   }
 
   Future<void> _contactarWhatsApp() async {
-    // 1. Registrar el clic en la base de datos
+    // 1. Registrar el clic
     try {
       final url = Uri.parse(
         'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/clic-whatsapp',
@@ -67,7 +69,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       debugPrint('Error registrando clic: $e');
     }
 
-    // 2. Abrir WhatsApp (Con filtro de limpieza de números)
+    // 2. Abrir WhatsApp
     final telefonoBruto = widget.perfil['telefono_contacto'];
     if (telefonoBruto == null || telefonoBruto.toString().trim().isEmpty) {
       if (!mounted) return;
@@ -79,7 +81,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       return;
     }
 
-    // Limpiamos el número para que solo queden los números sin espacios ni guiones
     final String telefonoLimpio = telefonoBruto.toString().replaceAll(
       RegExp(r'[^0-9]'),
       '',
@@ -119,12 +120,11 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       final double closeTime = closeHour + (closeMinute / 60.0);
 
       if (closeTime < openTime) {
-        // Si cierra al día siguiente (ej. 20:00 a 02:00)
         return currentTime >= openTime || currentTime <= closeTime;
       }
       return currentTime >= openTime && currentTime <= closeTime;
     } catch (e) {
-      return true; // Por defecto abierto si hay error en el formato
+      return true;
     }
   }
 
@@ -250,7 +250,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
           final googleSignIn = GoogleSignIn.instance;
           final GoogleSignInAccount? googleUser = await googleSignIn
               .authenticate();
-          if (googleUser == null) return; // Si el usuario cancela
+          if (googleUser == null) return;
           final GoogleSignInAuthentication googleAuth =
               await googleUser.authentication;
           final AuthCredential credential = GoogleAuthProvider.credential(
@@ -330,6 +330,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -346,9 +347,13 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'Calificar Servicio',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -372,11 +377,29 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                   TextField(
                     controller: _comentarioController,
                     maxLines: 3,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
                     decoration: InputDecoration(
                       hintText:
                           '¿Cómo fue tu experiencia con este profesional?',
-                      border: OutlineInputBorder(
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                      ),
+                      enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white24
+                              : Colors.black26,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).primaryColor,
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
@@ -387,7 +410,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                     child: ElevatedButton(
                       onPressed: () => enviarResena(usuarioIdDb),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.lightBlue,
+                        backgroundColor: Theme.of(context).primaryColor,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -416,22 +439,24 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   Widget build(BuildContext context) {
     final bool abierto = _estaAbierto();
     final bool esPremium = widget.perfil['plan_id'] == 3;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Colors.grey[200],
+      backgroundColor: Theme.of(context)
+          .scaffoldBackgroundColor, // Se adapta al tema
       appBar: AppBar(
         title: Text(
           widget.perfil['nombre_comercial'],
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0,
+        // Colores heredados del main.dart
         actions: [
           IconButton(
             icon: Icon(
               isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: isFavorite ? Colors.redAccent : Colors.white,
+              color: isFavorite
+                  ? Colors.redAccent
+                  : Theme.of(context).appBarTheme.iconTheme?.color,
             ),
             onPressed: alternarFavorito,
           ),
@@ -445,7 +470,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
             // CABECERA DEL PERFIL
             // ==========================================
             Container(
-              color: Colors.white,
+              color: Theme.of(context).cardColor, // Automático según el tema
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
@@ -454,24 +479,26 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                     children: [
                       CircleAvatar(
                         radius: 50,
-                        backgroundColor: Colors.blue[50],
+                        backgroundColor: isDark
+                            ? const Color(0xFF2A3143)
+                            : Colors.blue[50],
                         backgroundImage: widget.perfil['logo_url'] != null
                             ? NetworkImage(widget.perfil['logo_url'])
                             : null,
                         child: widget.perfil['logo_url'] == null
-                            ? const Icon(
+                            ? Icon(
                                 Icons.store,
                                 size: 40,
-                                color: Colors.lightBlue,
+                                color: Theme.of(context).primaryColor,
                               )
                             : null,
                       ),
                       if (esPremium)
-                        const Padding(
-                          padding: EdgeInsets.all(4.0),
+                        Padding(
+                          padding: const EdgeInsets.all(4.0),
                           child: Icon(
                             Icons.verified,
-                            color: Colors.blue,
+                            color: Theme.of(context).primaryColor,
                             size: 28,
                           ),
                         ),
@@ -480,29 +507,31 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                   const SizedBox(height: 16),
                   Text(
                     widget.perfil['nombre_comercial'],
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
 
                   // ==========================================
-                  // SECCIÓN: SOBRE NOSOTROS (Descripción Segura)
+                  // SECCIÓN: SOBRE NOSOTROS (Descripción)
                   // ==========================================
                   if (widget.perfil['descripcion'] != null &&
                       widget.perfil['descripcion']
                           .toString()
                           .trim()
                           .isNotEmpty) ...[
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Sobre nosotros',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                         ),
                       ),
                     ),
@@ -511,10 +540,10 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         widget.perfil['descripcion'],
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           height: 1.5,
-                          color: Colors.black87,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
                       ),
                     ),
@@ -529,9 +558,10 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       const SizedBox(width: 8),
                       Text(
                         '${widget.perfil['calificacion_promedio'] ?? '0.0'} (${widget.perfil['total_resenas'] ?? '0'} opiniones)',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                         ),
                       ),
                     ],
@@ -545,7 +575,13 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: abierto ? Colors.green[50] : Colors.red[50],
+                      color: abierto
+                          ? (isDark
+                                ? Colors.green.withOpacity(0.2)
+                                : Colors.green[50])
+                          : (isDark
+                                ? Colors.red.withOpacity(0.2)
+                                : Colors.red[50]),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: abierto ? Colors.green : Colors.red,
@@ -563,9 +599,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                         Text(
                           abierto ? 'Abierto Ahora' : 'Cerrado',
                           style: TextStyle(
-                            color: abierto
-                                ? Colors.green[700]
-                                : Colors.red[700],
+                            color: abierto ? Colors.green : Colors.red,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -591,7 +625,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(
                           0xFF25D366,
-                        ), // Color oficial de WhatsApp
+                        ), // Color oficial WhatsApp
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -608,17 +642,21 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _abrirMapa,
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.location_on,
-                            color: Colors.lightBlue,
+                            color: Theme.of(context).primaryColor,
                             size: 18,
                           ),
-                          label: const Text(
+                          label: Text(
                             'Cómo llegar',
-                            style: TextStyle(color: Colors.lightBlue),
+                            style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                            ),
                           ),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.lightBlue),
+                            side: BorderSide(
+                              color: Theme.of(context).primaryColor,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -629,17 +667,24 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _compartirPerfil,
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.share,
-                            color: Colors.black87,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
                             size: 18,
                           ),
-                          label: const Text(
+                          label: Text(
                             'Compartir',
-                            style: TextStyle(color: Colors.black87),
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.color,
+                            ),
                           ),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.black87),
+                            side: BorderSide(
+                              color: isDark ? Colors.white54 : Colors.black87,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -654,14 +699,18 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
             const SizedBox(height: 16),
 
             // ==========================================
-            // SECCIÓN DE GALERÍA
+            // SECCIÓN DE GALERÍA (CON VISOR PANTALLA COMPLETA)
             // ==========================================
             if (galeria.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
                   'Trabajos Realizados',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -672,22 +721,29 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   itemCount: galeria.length,
                   itemBuilder: (context, index) {
-                    return Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      width: 150,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        image: DecorationImage(
-                          image: NetworkImage(galeria[index]['imagen_url']),
-                          fit: BoxFit.cover,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                    return GestureDetector(
+                      onTap: () {
+                        // ¡MAGIA! Abre la foto en pantalla completa con zoom
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => VisorImagenesScreen(
+                              galeria: galeria,
+                              indexInicial: index,
+                            ),
                           ),
-                        ],
+                        );
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        width: 150,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          image: DecorationImage(
+                            image: NetworkImage(galeria[index]['imagen_url']),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -704,20 +760,24 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Opiniones de clientes',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
                   ),
                   TextButton.icon(
                     onPressed: _verificarYMostrarModal,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.rate_review,
                       size: 18,
-                      color: Colors.lightBlue,
+                      color: Theme.of(context).primaryColor,
                     ),
-                    label: const Text(
+                    label: Text(
                       'Dejar Reseña',
-                      style: TextStyle(color: Colors.lightBlue),
+                      style: TextStyle(color: Theme.of(context).primaryColor),
                     ),
                   ),
                 ],
@@ -725,17 +785,23 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
             ),
 
             isLoading
-                ? const Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Center(child: CircularProgressIndicator()),
+                ? Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
                   )
                 : resenas.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(32),
+                ? Padding(
+                    padding: const EdgeInsets.all(32),
                     child: Center(
                       child: Text(
                         'Sé el primero en dejar una reseña.',
-                        style: TextStyle(color: Colors.grey),
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
                       ),
                     ),
                   )
@@ -743,23 +809,33 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: resenas.length,
-                    separatorBuilder: (context, index) => const Divider(),
+                    separatorBuilder: (context, index) => Divider(
+                      color: isDark ? Colors.white12 : Colors.black12,
+                    ),
                     itemBuilder: (context, index) {
                       final r = resenas[index];
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: Colors.grey[300],
+                          backgroundColor: isDark
+                              ? const Color(0xFF2A3143)
+                              : Colors.grey[300],
                           child: Text(
                             r['autor'][0].toUpperCase(),
-                            style: const TextStyle(color: Colors.black87),
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
                           ),
                         ),
                         title: Row(
                           children: [
                             Text(
                               r['autor'],
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.color,
                               ),
                             ),
                             const Spacer(),
@@ -778,11 +854,20 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                         ),
                         subtitle: Padding(
                           padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(r['comentario']),
+                          child: Text(
+                            r['comentario'],
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.color,
+                            ),
+                          ),
                         ),
                       );
                     },
                   ),
+            const SizedBox(height: 30),
           ],
         ),
       ),

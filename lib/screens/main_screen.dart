@@ -3,14 +3,13 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'home_screen.dart';
 import 'login_screen.dart';
 import 'dashboard_screen.dart';
 import 'perfil_detalle_screen.dart';
-
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:firebase_messaging/firebase_messaging.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
@@ -77,15 +76,23 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Detectamos si el tema actual es oscuro
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: Colors.lightBlue)),
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: Theme.of(context).primaryColor,
+          ),
+        ),
       );
     }
 
     // Definimos qué pantalla se muestra en cada pestaña
     final List<Widget> pantallas = [
-      const HomeScreen(), // <-- AQUÍ ESTÁ TU PÁGINA PRINCIPAL
+      const HomeScreen(),
       const FavoritosScreen(),
       profesionalId != null
           ? DashboardScreen(usuarioId: profesionalId!)
@@ -93,6 +100,7 @@ class _MainScreenState extends State<MainScreen> {
     ];
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: pantallas[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -104,9 +112,10 @@ class _MainScreenState extends State<MainScreen> {
             }
           });
         },
-        backgroundColor: Colors.black, // Barra oscura estilo Mercado Libre
-        selectedItemColor: Colors.lightBlue,
-        unselectedItemColor: Colors.white54,
+        // Adaptación automática de colores
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        selectedItemColor: Theme.of(context).primaryColor,
+        unselectedItemColor: isDark ? Colors.white54 : Colors.black54,
         type: BottomNavigationBarType.fixed,
         elevation: 10,
         items: const [
@@ -128,7 +137,7 @@ class _MainScreenState extends State<MainScreen> {
 }
 
 // ==========================================
-// PANTALLA DE FAVORITOS (ESTILO DARK MODE)
+// PANTALLA DE FAVORITOS (TEMA DINÁMICO)
 // ==========================================
 class FavoritosScreen extends StatelessWidget {
   const FavoritosScreen({super.key});
@@ -141,28 +150,25 @@ class FavoritosScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(
-        0xFF0B101E,
-      ), // Fondo oscuro principal (igual al Home)
+      // El Scaffold tomará automáticamente el color de fondo definido en main.dart
       appBar: AppBar(
         title: const Text(
           'Mis Guardados',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.black,
-        elevation: 0,
+        // La AppBar tomará automáticamente los colores de appBarTheme en main.dart
       ),
       body: FutureBuilder<List<dynamic>>(
         future: cargarFavoritos(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFF00B4D8)),
+            return Center(
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
+              ),
             );
           }
 
@@ -176,18 +182,23 @@ class FavoritosScreen extends StatelessWidget {
                   Icon(
                     Icons.favorite_border,
                     size: 64,
-                    color: Colors.white24, // Ícono atenuado
+                    color: isDark ? Colors.white24 : Colors.black26,
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Aún no tienes favoritos',
-                    style: TextStyle(fontSize: 18, color: Colors.white70),
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Guarda a los profesionales\npara encontrarlos rápido.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white54),
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : Colors.black54,
+                    ),
                   ),
                 ],
               ),
@@ -215,10 +226,10 @@ class FavoritosScreen extends StatelessWidget {
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1A1F2E), // Tarjeta oscura
+                    color: Theme.of(context).cardColor, // Se adapta al tema
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.white10, // Borde sutil
+                      color: isDark ? Colors.white10 : Colors.black12,
                       width: 1,
                     ),
                   ),
@@ -229,7 +240,9 @@ class FavoritosScreen extends StatelessWidget {
                       height: 50,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFF2A3143),
+                        color: isDark
+                            ? const Color(0xFF2A3143)
+                            : Colors.grey[200],
                         image: prof['logo_url'] != null
                             ? DecorationImage(
                                 image: NetworkImage(prof['logo_url']),
@@ -238,14 +251,17 @@ class FavoritosScreen extends StatelessWidget {
                             : null,
                       ),
                       child: prof['logo_url'] == null
-                          ? const Icon(Icons.store, color: Color(0xFF00B4D8))
+                          ? Icon(
+                              Icons.store,
+                              color: Theme.of(context).primaryColor,
+                            )
                           : null,
                     ),
                     title: Text(
                       prof['nombre_comercial'],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
                     subtitle: Column(
@@ -272,9 +288,9 @@ class FavoritosScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    trailing: const Icon(
+                    trailing: Icon(
                       Icons.chevron_right,
-                      color: Colors.white54,
+                      color: isDark ? Colors.white54 : Colors.black54,
                     ),
                   ),
                 ),

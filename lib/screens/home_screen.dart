@@ -9,6 +9,7 @@ import 'rubros_screen.dart';
 import 'resultados_busqueda_screen.dart';
 import 'perfil_detalle_screen.dart';
 import 'admin_dashboard_screen.dart';
+import '../main.dart'; // Importa la variable themeNotifier
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -114,19 +115,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0B101E), // Fondo oscuro principal
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+
       // ==========================================
       // MENÚ LATERAL (HAMBURGUESA)
       // ==========================================
       drawer: Drawer(
-        backgroundColor: const Color(0xFF1A1F2E),
+        backgroundColor: Theme.of(context).cardColor, // Se adapta al modo
         child: Column(
           children: [
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(top: 50, bottom: 20, left: 20),
-              color: Colors.black,
+              color: Theme.of(context)
+                  .appBarTheme
+                  .backgroundColor, // Sigue el color de la barra
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -148,6 +154,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
+
+            // ==========================================
+            // BOTÓN PARA CAMBIAR TEMA (CLARO/OSCURO)
+            // ==========================================
+            ListTile(
+              leading: Icon(
+                isDark ? Icons.light_mode : Icons.dark_mode,
+                color: Theme.of(context).primaryColor,
+              ),
+              title: Text(
+                isDark ? 'Modo Claro' : 'Modo Oscuro',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context); // Cierra el menú al tocar
+                themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
+              },
+            ),
+
+            // Línea divisoria
+            Divider(color: isDark ? Colors.white24 : Colors.black12),
+
             if (FirebaseAuth.instance.currentUser?.email ==
                 'svfdfacilitador@gmail.com')
               ListTile(
@@ -177,9 +208,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
             Expanded(
               child: isLoading
-                  ? const Center(
+                  ? Center(
                       child: CircularProgressIndicator(
-                        color: Color(0xFF00B4D8),
+                        color: Theme.of(context).primaryColor,
                       ),
                     )
                   : ListView.builder(
@@ -190,16 +221,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         return ListTile(
                           leading: Icon(
                             _obtenerIconoInteligente(cat['nombre']),
-                            color: Colors.white70,
+                            color: isDark ? Colors.white70 : Colors.black54,
                           ),
                           title: Text(
                             cat['nombre'],
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.color,
+                            ),
                           ),
-                          trailing: const Icon(
+                          trailing: Icon(
                             Icons.chevron_right,
                             size: 16,
-                            color: Colors.white54,
+                            color: isDark ? Colors.white54 : Colors.black45,
                           ),
                           onTap: () {
                             Navigator.pop(context);
@@ -225,25 +261,31 @@ class _HomeScreenState extends State<HomeScreen> {
       // BARRA SUPERIOR
       // ==========================================
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0,
+        // Ya no ponemos color aquí, dejamos que main.dart lo controle
         titleSpacing: 0,
         title: Container(
           height: 40,
           margin: const EdgeInsets.only(right: 16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark
+                ? Colors.white
+                : Colors.grey[200], // Fondo del buscador
             borderRadius: BorderRadius.circular(20),
           ),
           child: TextField(
             controller: _searchController,
             textInputAction: TextInputAction.search,
+            style: const TextStyle(
+              color: Colors.black87,
+            ), // Siempre negro para que se lea en el buscador blanco/gris
             onSubmitted: _ejecutarBusqueda,
             decoration: InputDecoration(
               hintText: 'Estoy buscando en Tartagal...',
-              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-              prefixIcon: const Icon(Icons.search, color: Color(0xFF00B4D8)),
+              hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+              prefixIcon: Icon(
+                Icons.search,
+                color: Theme.of(context).primaryColor,
+              ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
             ),
@@ -262,9 +304,14 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               height: 150,
               width: double.infinity,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.black, Colors.black87],
+                  colors: isDark
+                      ? [Colors.black, Colors.black87]
+                      : [
+                          Theme.of(context).primaryColor,
+                          Colors.blueAccent,
+                        ], // Si es claro, usamos el azul de la app
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
@@ -280,13 +327,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Colors.white.withOpacity(0.05),
                     ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.all(20.0),
+                  Padding(
+                    padding: const EdgeInsets.all(20.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
+                        const Text(
                           'LOS MEJORES\nPROFESIONALES',
                           style: TextStyle(
                             color: Colors.white,
@@ -295,11 +342,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             height: 1.2,
                           ),
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           'Encuentra confianza y calidad.',
                           style: TextStyle(
-                            color: Color(0xFF00B4D8),
+                            color: isDark
+                                ? const Color(0xFF00B4D8)
+                                : Colors.white,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -342,20 +391,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             Container(
                               width: 60,
                               height: 60,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).cardColor, // Se adapta
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black12,
+                                    color: isDark
+                                        ? Colors.black45
+                                        : Colors.black12,
                                     blurRadius: 4,
-                                    offset: Offset(0, 2),
+                                    offset: const Offset(0, 2),
                                   ),
                                 ],
                               ),
                               child: Icon(
                                 _obtenerIconoInteligente(cat['nombre']),
-                                color: const Color(0xFF00B4D8),
+                                color: Theme.of(context).primaryColor,
                                 size: 28,
                               ),
                             ),
@@ -365,10 +416,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               textAlign: TextAlign.center,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: Colors
-                                    .white, // Texto ajustado para Dark Mode
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.color,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -384,26 +437,28 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
 
             // 3. SECCIÓN "Novedades y Destacados"
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
                 'Destacados en Tartagal',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ), // Texto en blanco
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
               ),
             ),
             const SizedBox(height: 12),
 
             destacados.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.all(20.0),
+                ? Padding(
+                    padding: const EdgeInsets.all(20.0),
                     child: Center(
                       child: Text(
                         '¡Nuevos profesionales destacados muy pronto!',
-                        style: TextStyle(color: Colors.white54),
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
                       ),
                     ),
                   )
@@ -431,17 +486,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1A1F2E),
+                            color: Theme.of(context).cardColor, // Automático
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: isPremium
                                   ? const Color(0xFF00B4D8).withOpacity(0.5)
-                                  : Colors.transparent,
+                                  : (isDark ? Colors.white10 : Colors.black12), // Borde sutil si no es premium
                               width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
+                                color: isDark ? Colors.black38 : Colors.black12,
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               ),
@@ -458,7 +513,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       height: 60,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: const Color(0xFF2A3143),
+                                        color: isDark
+                                            ? const Color(0xFF2A3143)
+                                            : Colors.grey[200],
                                         image: prof['logo_url'] != null
                                             ? DecorationImage(
                                                 image: NetworkImage(
@@ -469,9 +526,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                             : null,
                                       ),
                                       child: prof['logo_url'] == null
-                                          ? const Icon(
+                                          ? Icon(
                                               Icons.store,
-                                              color: Color(0xFF00B4D8),
+                                              color: Theme.of(context)
+                                                  .primaryColor,
                                               size: 30,
                                             )
                                           : null,
@@ -488,10 +546,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 child: Text(
                                                   prof['nombre_comercial'] ??
                                                       'Sin nombre',
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     fontSize: 18,
                                                     fontWeight: FontWeight.bold,
-                                                    color: Colors.white,
+                                                    color: Theme.of(context)
+                                                        .textTheme
+                                                        .bodyLarge
+                                                        ?.color,
                                                   ),
                                                   maxLines: 1,
                                                   overflow:
@@ -499,9 +560,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 ),
                                               ),
                                               const SizedBox(width: 4),
-                                              const Icon(
+                                              Icon(
                                                 Icons.verified,
-                                                color: Color(0xFF00B4D8),
+                                                color: Theme.of(context)
+                                                    .primaryColor,
                                                 size: 20,
                                               ),
                                             ],
@@ -515,7 +577,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 ? prof['descripcion']
                                                 : 'Profesional verificado en Tartagal',
                                             style: TextStyle(
-                                              color: Colors.grey[400],
+                                              color: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.color,
                                               fontSize: 13,
                                               height: 1.4,
                                             ),
@@ -542,8 +607,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                               const SizedBox(width: 8),
                                               Text(
                                                 '• ${prof['total_resenas'] ?? '0'} Trabajos',
-                                                style: TextStyle(
-                                                  color: Colors.grey[500],
+                                                style: const TextStyle(
+                                                  color: Colors.grey,
                                                   fontSize: 11,
                                                 ),
                                               ),
@@ -564,9 +629,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       horizontal: 12,
                                       vertical: 6,
                                     ),
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF00B4D8),
-                                      borderRadius: BorderRadius.only(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).primaryColor,
+                                      borderRadius: const BorderRadius.only(
                                         bottomLeft: Radius.circular(12),
                                         topRight: Radius.circular(16),
                                       ),
@@ -576,7 +641,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       children: [
                                         Icon(
                                           Icons.bolt,
-                                          color: Colors.black87,
+                                          color: Colors.white,
                                           size: 14,
                                         ),
                                         SizedBox(width: 4),
@@ -585,7 +650,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.black87,
+                                            color: Colors.white,
                                           ),
                                         ),
                                       ],
