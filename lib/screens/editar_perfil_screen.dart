@@ -24,6 +24,10 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   late TextEditingController _telefonoController;
   late TextEditingController _direccionController;
 
+  // Nuevos controladores para Redes Sociales
+  late TextEditingController _instagramController;
+  late TextEditingController _facebookController;
+
   // Variables de imagen
   XFile? _imagenSeleccionada;
   Uint8List? _imagenBytes;
@@ -45,6 +49,15 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     _direccionController = TextEditingController(
       text: widget.perfilData['direccion'] ?? '',
     );
+
+    // Inicializamos las redes sociales
+    _instagramController = TextEditingController(
+      text: widget.perfilData['instagram'] ?? '',
+    );
+    _facebookController = TextEditingController(
+      text: widget.perfilData['facebook'] ?? '',
+    );
+
     _logoUrlExistente =
         widget.perfilData['logo_url']; // Guardamos la foto que ya tiene
   }
@@ -132,6 +145,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       final url = Uri.parse(
         'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfilData['id']}',
       );
+
+      // Actualizamos enviando también las redes sociales
       final response = await http.put(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -140,6 +155,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
           'descripcion': _descripcionController.text,
           'telefono_contacto': _telefonoController.text,
           'direccion': _direccionController.text,
+          'instagram': _instagramController.text,
+          'facebook': _facebookController.text,
           'logo_url': nuevaUrlLogo,
         }),
       );
@@ -320,6 +337,87 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                     Icons.phone_android,
                     color: Colors.green,
                   ),
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // ==========================================
+              // REDES SOCIALES
+              // ==========================================
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Redes Sociales (Opcional)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              TextFormField(
+                controller: _instagramController,
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+                keyboardType: TextInputType.url,
+                decoration: InputDecoration(
+                  labelText: 'Enlace de Instagram',
+                  labelStyle: TextStyle(
+                    color: isDark ? Colors.white54 : Colors.black54,
+                  ),
+                  hintText: 'Ej: https://instagram.com/tu_negocio',
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.white30 : Colors.black38,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: isDark ? Colors.white24 : Colors.black26,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).primaryColor,
+                      width: 2,
+                    ),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.camera_alt,
+                    color: Colors.purpleAccent,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _facebookController,
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+                keyboardType: TextInputType.url,
+                decoration: InputDecoration(
+                  labelText: 'Enlace de Facebook',
+                  labelStyle: TextStyle(
+                    color: isDark ? Colors.white54 : Colors.black54,
+                  ),
+                  hintText: 'Ej: https://facebook.com/tu_negocio',
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.white30 : Colors.black38,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: isDark ? Colors.white24 : Colors.black26,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).primaryColor,
+                      width: 2,
+                    ),
+                  ),
+                  prefixIcon: const Icon(Icons.facebook, color: Colors.blue),
                 ),
               ),
               const SizedBox(height: 32),

@@ -29,6 +29,7 @@ class PerfilDetalleScreen extends StatefulWidget {
 class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   List<dynamic> resenas = [];
   List<dynamic> galeria = [];
+  List<dynamic> profesionalesSimilares = []; // Nueva lista para la competencia
   bool isLoading = true;
   bool isFavorite = false;
 
@@ -42,6 +43,56 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     fetchGaleria();
     verificarSiEsFavorito();
     registrarVisita();
+
+    // Si NO es Premium, buscamos a la competencia
+    if (widget.perfil['plan_id'] != 3) {
+      _cargarCompetencia();
+    }
+  }
+
+  // ==========================================
+  // CARGAR COMPETENCIA
+  // ==========================================
+  Future<void> _cargarCompetencia() async {
+    try {
+      // Reemplaza "rubro_id" con el campo exacto que usas en tu DB para la categoría
+      // Por defecto buscaré usando el término de búsqueda general basado en su nombre o descripción
+      final nombreComercial = widget.perfil['nombre_comercial'];
+      if (nombreComercial == null) return;
+
+      // Hacemos una búsqueda simple usando el nombre para encontrar similares
+      // Si tienes un rubro_id, sería mejor: api/rubros/${widget.perfil['rubro_id']}/profesionales
+      final url = Uri.parse(
+        'https://guia-norte-backend.onrender.com/api/buscar?q=${Uri.encodeComponent(nombreComercial)}',
+      );
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> todos = json.decode(response.body);
+        if (mounted) {
+          setState(() {
+            // Filtramos para que no se muestre a sí mismo en la lista
+            profesionalesSimilares = todos
+                .where((p) => p['id'] != widget.perfil['id'])
+                .toList();
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error cargando competencia: $e');
+    }
+  }
+
+  // ==========================================
+  // ABRIR REDES SOCIALES
+  // ==========================================
+  Future<void> _abrirRedSocial(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    try {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Error al abrir enlace: $e');
+    }
   }
 
   // ==========================================
@@ -59,7 +110,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   }
 
   Future<void> _contactarWhatsApp() async {
-    // 1. Registrar el clic
     try {
       final url = Uri.parse(
         'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/clic-whatsapp',
@@ -69,7 +119,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       debugPrint('Error registrando clic: $e');
     }
 
-    // 2. Abrir WhatsApp
     final telefonoBruto = widget.perfil['telefono_contacto'];
     if (telefonoBruto == null || telefonoBruto.toString().trim().isEmpty) {
       if (!mounted) return;
@@ -105,13 +154,11 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   bool _estaAbierto() {
     final String apertura = widget.perfil['hora_apertura'] ?? '08:00';
     final String cierre = widget.perfil['hora_cierre'] ?? '18:00';
-
     final now = DateTime.now();
 
     try {
       final int openHour = int.parse(apertura.split(':')[0]);
       final int openMinute = int.parse(apertura.split(':')[1]);
-
       final int closeHour = int.parse(cierre.split(':')[0]);
       final int closeMinute = int.parse(cierre.split(':')[1]);
 
@@ -128,9 +175,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     }
   }
 
-  // ==========================================
-  // RESTO DEL CÓDIGO (Galería, Favoritos, Mapas, Reseñas...)
-  // ==========================================
   Future<void> fetchGaleria() async {
     try {
       final url = Uri.parse(
@@ -438,18 +482,17 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   @override
   Widget build(BuildContext context) {
     final bool abierto = _estaAbierto();
-    final bool esPremium = widget.perfil['plan_id'] == 3;
+    final int planId = widget.perfil['plan_id'] ?? 1;
+    final bool esPremium = planId == 3;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Theme.of(context)
-          .scaffoldBackgroundColor, // Se adapta al tema
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           widget.perfil['nombre_comercial'],
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        // Colores heredados del main.dart
         actions: [
           IconButton(
             icon: Icon(
@@ -462,27 +505,23 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
           ),
         ],
       ),
-      // ==========================================
-      // MAGIA: RefreshIndicator
-      // ==========================================
       body: RefreshIndicator(
         color: Theme.of(context).primaryColor,
         backgroundColor: Theme.of(context).cardColor,
         onRefresh: () async {
           await fetchGaleria();
           await fetchResenas();
+          if (planId != 3) {
+            await _cargarCompetencia();
+          }
         },
         child: SingleChildScrollView(
-          physics:
-              const AlwaysScrollableScrollPhysics(), // Clave para que funcione
+          physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ==========================================
-              // CABECERA DEL PERFIL
-              // ==========================================
               Container(
-                color: Theme.of(context).cardColor, // Automático según el tema
+                color: Theme.of(context).cardColor,
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
@@ -531,7 +570,8 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                     // ==========================================
                     // SECCIÓN: SOBRE NOSOTROS (Descripción)
                     // ==========================================
-                    if (widget.perfil['descripcion'] != null &&
+                    if (planId > 1 &&
+                        widget.perfil['descripcion'] != null &&
                         widget.perfil['descripcion']
                             .toString()
                             .trim()
@@ -623,34 +663,81 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // BOTÓN GIGANTE DE WHATSAPP (Suma un clic)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: _contactarWhatsApp,
-                        icon: const Icon(Icons.chat, color: Colors.white),
-                        label: const Text(
-                          'Contactar por WhatsApp',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                    // ==========================================
+                    // SECCIÓN DE CONTACTO SEGÚN EL PLAN
+                    // ==========================================
+                    if (planId > 1) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed: _contactarWhatsApp,
+                          icon: const Icon(Icons.chat, color: Colors.white),
+                          label: const Text(
+                            'Contactar por WhatsApp',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(
-                            0xFF25D366,
-                          ), // Color oficial WhatsApp
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF25D366),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ] else ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white10 : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white24
+                                : Colors.grey.shade300,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.phone_android,
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.color,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Teléfono: ${widget.perfil['telefono_contacto'] ?? 'No disponible'}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.color,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Copia este número para contactarlo.',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
 
-                    // Botones secundarios de Mapas y Compartir
+                    // Botones de Mapas y Compartir
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -711,15 +798,71 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                         ),
                       ],
                     ),
+
+                    // ==========================================
+                    // REDES SOCIALES (Solo Premium)
+                    // ==========================================
+                    if (planId == 3 &&
+                        ((widget.perfil['instagram'] != null &&
+                                widget.perfil['instagram']
+                                    .toString()
+                                    .isNotEmpty) ||
+                            (widget.perfil['facebook'] != null &&
+                                widget.perfil['facebook']
+                                    .toString()
+                                    .isNotEmpty))) ...[
+                      const SizedBox(height: 16),
+                      const Divider(color: Colors.grey),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Nuestras Redes',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (widget.perfil['instagram'] != null &&
+                              widget.perfil['instagram'].toString().isNotEmpty)
+                            IconButton(
+                              onPressed: () =>
+                                  _abrirRedSocial(widget.perfil['instagram']),
+                              icon: const Icon(
+                                Icons.camera_alt,
+                                color: Colors.purpleAccent,
+                                size: 32,
+                              ),
+                              tooltip: 'Instagram',
+                            ),
+                          if (widget.perfil['facebook'] != null &&
+                              widget.perfil['facebook'].toString().isNotEmpty)
+                            IconButton(
+                              onPressed: () =>
+                                  _abrirRedSocial(widget.perfil['facebook']),
+                              icon: const Icon(
+                                Icons.facebook,
+                                color: Colors.blue,
+                                size: 32,
+                              ),
+                              tooltip: 'Facebook',
+                            ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(height: 16),
 
               // ==========================================
-              // SECCIÓN DE GALERÍA (CON VISOR PANTALLA COMPLETA)
+              // SECCIÓN DE GALERÍA (SOLO VISIBLE SI PLAN > 1)
               // ==========================================
-              if (galeria.isNotEmpty) ...[
+              if (planId > 1 && galeria.isNotEmpty) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Text(
@@ -741,7 +884,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                     itemBuilder: (context, index) {
                       return GestureDetector(
                         onTap: () {
-                          // ¡MAGIA! Abre la foto en pantalla completa con zoom
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -889,6 +1031,120 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       },
                     ),
               const SizedBox(height: 30),
+
+              // ==========================================
+              // SECCIÓN "OTROS PROFESIONALES SIMILARES"
+              // (SOLO SE MUESTRA SI NO ES PREMIUM)
+              // ==========================================
+              if (planId != 3 && profesionalesSimilares.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    'Otros profesionales similares',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 130,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    itemCount: profesionalesSimilares.length,
+                    itemBuilder: (context, index) {
+                      final comp = profesionalesSimilares[index];
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PerfilDetalleScreen(
+                                perfil: comp,
+                                currentUserId: widget.currentUserId,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          width: 250,
+                          margin: const EdgeInsets.only(right: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isDark ? Colors.white10 : Colors.black12,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: isDark
+                                    ? const Color(0xFF2A3143)
+                                    : Colors.grey[200],
+                                backgroundImage: comp['logo_url'] != null
+                                    ? NetworkImage(comp['logo_url'])
+                                    : null,
+                                child: comp['logo_url'] == null
+                                    ? Icon(
+                                        Icons.store,
+                                        color: Theme.of(context).primaryColor,
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      comp['nombre_comercial'],
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge
+                                            ?.color,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.star,
+                                          color: Colors.amber,
+                                          size: 14,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${comp['calificacion_promedio'] ?? '5.0'}',
+                                          style: const TextStyle(
+                                            color: Colors.amber,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 30),
+              ],
             ],
           ),
         ),

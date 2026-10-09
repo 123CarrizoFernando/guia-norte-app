@@ -168,7 +168,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               backgroundColor: Theme.of(context).cardColor,
               onRefresh: cargarPerfilYGaleria,
               child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(), // Clave
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -585,9 +585,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ],
                           ),
                           const SizedBox(height: 16),
+
+                          // SI NO ES PREMIUM (PUEDE SER BÁSICO O MEDIO)
                           if (perfilData!['plan_id'] != 3) ...[
                             Text(
-                              '¡Destaca tu negocio!',
+                              '¡Consigue más clientes!',
                               style: TextStyle(
                                 color: isDark ? Colors.white : Colors.black87,
                                 fontSize: 18,
@@ -596,20 +598,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Mejora tu plan para conseguir más clientes en Tartagal.',
+                              'Activa el botón de WhatsApp y tu galería de fotos.',
                               style: TextStyle(
                                 color: isDark ? Colors.white70 : Colors.black54,
                                 fontSize: 14,
                               ),
                             ),
                             const SizedBox(height: 20),
+
                             if (perfilData!['plan_id'] == 1)
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
                                   onPressed: () async {
                                     await launchUrl(
-                                      Uri.parse('TU_LINK_DE_12500'),
+                                      Uri.parse(
+                                        'TU_LINK_DE_5000',
+                                      ), // REEMPLAZA CON LINK MERCADOPAGO 5000
                                       mode: LaunchMode.externalApplication,
                                     );
                                   },
@@ -618,7 +623,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     color: Colors.white,
                                   ),
                                   label: const Text(
-                                    'Subir a Plan Medio (\$12.500/mes)',
+                                    'Activar Plan Medio (\$5.000/mes)',
                                   ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.blueAccent,
@@ -635,7 +640,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               child: ElevatedButton.icon(
                                 onPressed: () async {
                                   await launchUrl(
-                                    Uri.parse('https://mpago.la/2TWNwfq'),
+                                    Uri.parse(
+                                      'TU_LINK_DE_20000',
+                                    ), // REEMPLAZA CON LINK MERCADOPAGO 20000
                                     mode: LaunchMode.externalApplication,
                                   );
                                 },
@@ -644,7 +651,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   color: Colors.black87,
                                 ),
                                 label: const Text(
-                                  'Subir a Plan Premium (\$25.000/mes)',
+                                  'Ser Destacado Premium (\$20.000/mes)',
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.amber,
@@ -656,6 +663,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                             ),
                           ],
+
                           if (perfilData!['plan_id'] == 3) ...[
                             const Text(
                               '¡Eres Nivel Premium!',
@@ -673,6 +681,87 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ),
                             ),
                           ],
+
+                          const SizedBox(height: 24),
+                          Divider(
+                            color: isDark ? Colors.white24 : Colors.black12,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ==========================================
+                          // BANNER: SERVICIO DE ARMADO DE PERFIL
+                          // ==========================================
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).primaryColor
+                                  .withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.design_services,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '¿No tienes tiempo?',
+                                      style: TextStyle(
+                                        color: Theme.of(context).primaryColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Nosotros armamos tu perfil, retocamos tu logo y subimos tu portafolio por un pago único de \$8.000.',
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white70
+                                        : Colors.black87,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton(
+                                    onPressed: () async {
+                                      // Reemplaza 5493873XXXXXX por tu número real de Tartagal
+                                      final Uri url = Uri.parse(
+                                        'https://wa.me/5493873569838?text=Hola,%20quiero%20contratar%20el%20armado%20de%20mi%20perfil%20en%20Guía%20del%20Norte.',
+                                      );
+                                      await launchUrl(
+                                        url,
+                                        mode: LaunchMode.externalApplication,
+                                      );
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(
+                                        color: Theme.of(context).primaryColor,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Contratar armado VIP',
+                                      style: TextStyle(
+                                        color: Theme.of(context).primaryColor,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
