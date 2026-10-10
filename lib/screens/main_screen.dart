@@ -25,12 +25,26 @@ class _MainScreenState extends State<MainScreen> {
   int? profesionalId;
   bool isLoading = true;
 
+  // 1. Agregamos el controlador de páginas
+  late PageController _pageController;
+
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+
+    // 2. Inicializamos el controlador apuntando a la pantalla inicial
+    _pageController = PageController(initialPage: _currentIndex);
+
     _verificarSesion();
     _configurarNotificaciones();
+  }
+
+  // 3. Es fundamental desechar el controlador cuando se cierra la pantalla para no consumir memoria
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   // ==========================================
@@ -74,6 +88,32 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  // 4. Lógica cuando tocas un ícono en la barra inferior
+  void _onItemTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+      if (index == 2) {
+        _verificarSesion();
+      }
+    });
+    // Anima el deslizamiento hacia la página correspondiente
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  // 5. Lógica cuando deslizas el dedo por la pantalla
+  void _onPageChanged(int index) {
+    setState(() {
+      _currentIndex = index;
+      if (index == 2) {
+        _verificarSesion();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     // Detectamos si el tema actual es oscuro
@@ -101,17 +141,17 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: pantallas[_currentIndex],
+      // 6. En lugar de cambiar el body secamente, usamos PageView
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: _onPageChanged,
+        physics:
+            const BouncingScrollPhysics(), // Efecto de rebote de iOS/Instagram
+        children: pantallas,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-            if (index == 2) {
-              _verificarSesion();
-            }
-          });
-        },
+        onTap: _onItemTapped, // Usamos la nueva función
         // Adaptación automática de colores
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         selectedItemColor: Theme.of(context).primaryColor,
