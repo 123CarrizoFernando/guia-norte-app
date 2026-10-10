@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class EditarPerfilScreen extends StatefulWidget {
   final Map<String, dynamic> perfilData;
@@ -137,6 +138,13 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // 1. Obtenemos el usuario actual y su Token de seguridad de Firebase
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('No hay usuario logueado');
+
+      final token = await user.getIdToken(); // ¡Aquí está la credencial!
+
+      // 2. Subimos la imagen si hay una nueva
       String? nuevaUrlLogo;
       if (_imagenSeleccionada != null) {
         nuevaUrlLogo = await _subirImagenACloudinary();
@@ -146,10 +154,14 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
         'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfilData['id']}',
       );
 
-      // Actualizamos enviando también las redes sociales
+      // 3. Enviamos la petición con la credencial en los "headers"
       final response = await http.put(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization':
+              'Bearer $token', // Le mostramos la credencial al guardia
+        },
         body: json.encode({
           'nombre_comercial': _nombreController.text,
           'descripcion': _descripcionController.text,
@@ -164,6 +176,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       if (response.statusCode == 200) {
         if (!mounted) return;
         Navigator.pop(context, true);
+      } else {
+        debugPrint('Error del servidor: ${response.body}');
       }
     } catch (e) {
       debugPrint('Error: $e');
