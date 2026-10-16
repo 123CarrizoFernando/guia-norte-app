@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1073291011558-q35kap5kkf1qk9boq7o5eb0ru74msqbj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ar.com.guiadelnorte.app",
+            "certificate_hash": "ef0868d0bdcc7c5d73ba1cc4e1700bcec5f54b76"
+          }
+        },
+        {
           "client_id": "1073291011558-78uuqcq6inqhdvvcji25rb8c69ijliga.apps.googleusercontent.com",
           "client_type": 3
         }
