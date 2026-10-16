@@ -613,7 +613,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   onPressed: () async {
                                     await launchUrl(
                                       Uri.parse(
-                                        'TU_LINK_DE_5000',
+                                        'https://mpago.la/1ygAvpA',
                                       ), // REEMPLAZA CON LINK MERCADOPAGO 5000
                                       mode: LaunchMode.externalApplication,
                                     );
@@ -641,7 +641,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 onPressed: () async {
                                   await launchUrl(
                                     Uri.parse(
-                                      'TU_LINK_DE_20000',
+                                      'https://mpago.la/2TWNwfq',
                                     ), // REEMPLAZA CON LINK MERCADOPAGO 20000
                                     mode: LaunchMode.externalApplication,
                                   );
