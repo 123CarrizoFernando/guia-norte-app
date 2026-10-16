@@ -161,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             Divider(color: isDark ? Colors.white24 : Colors.black12),
             if (FirebaseAuth.instance.currentUser?.email ==
-                'svfdfacilitador@gmail.com')
+                'yoprogramador99@gmail.com')
               ListTile(
                 tileColor: Colors.amber.withOpacity(0.1),
                 leading: const Icon(
