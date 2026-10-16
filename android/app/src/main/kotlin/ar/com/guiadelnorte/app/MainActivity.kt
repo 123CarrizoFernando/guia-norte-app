@@ -1,4 +1,4 @@
-package com.example.guia_del_norte
+package ar.com.guiadelnorte.app
 
 import io.flutter.embedding.android.FlutterActivity
 
