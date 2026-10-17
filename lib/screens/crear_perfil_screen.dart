@@ -410,15 +410,15 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                 items: const [
                   DropdownMenuItem(
                     value: 1,
-                    child: Text('Plan Básico (\$5.000 - \$7.000)'),
+                    child: Text('Plan Básico (Gratis)'),
                   ),
                   DropdownMenuItem(
                     value: 2,
-                    child: Text('Plan Medio (\$10.000 - \$15.000)'),
+                    child: Text('Plan Medio (\$5.000 / mes)'),
                   ),
                   DropdownMenuItem(
                     value: 3,
-                    child: Text('Plan Premium (\$50.000 - \$70.000)'),
+                    child: Text('Plan Premium (\$20.000 / mes)'),
                   ),
                 ],
                 onChanged: (val) => setState(() => _planSeleccionado = val!),
