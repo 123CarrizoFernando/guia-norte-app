@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 import 'dart:typed_data';
 
@@ -36,8 +37,6 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
   int? _rubroSeleccionado;
   int? _servicioSeleccionado;
 
-  // Variables para la imagen
-  XFile? _imagenSeleccionada;
   Uint8List? _imagenBytes;
   String? _logoUrl;
   final ImagePicker _picker = ImagePicker();
@@ -96,35 +95,53 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
       source: ImageSource.gallery,
       imageQuality: 70,
     );
+
     if (imagen != null) {
-      final bytes = await imagen.readAsBytes();
-      setState(() {
-        _imagenSeleccionada = imagen;
-        _imagenBytes = bytes;
-      });
+      // Aplicar el recortador a la imagen seleccionada
+      CroppedFile? imagenRecortada = await ImageCropper().cropImage(
+        sourcePath: imagen.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Ajustar Logo',
+            toolbarColor: const Color(0xFF0b0f19),
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+          ),
+          IOSUiSettings(title: 'Ajustar Logo'),
+          WebUiSettings(context: context, presentStyle: WebPresentStyle.dialog),
+        ],
+      );
+
+      if (imagenRecortada != null) {
+        // Leer SIEMPRE como bytes para que funcione perfectamente en Web y Android
+        final bytes = await imagenRecortada.readAsBytes();
+        setState(() {
+          _imagenBytes = bytes;
+        });
+      }
     }
   }
 
-  // MÉTODO NUEVO: Subida directa a Cloudinary
   Future<String?> _subirImagenACloudinary() async {
-    if (_imagenSeleccionada == null || _imagenBytes == null) return null;
+    if (_imagenBytes == null) return null;
 
     try {
-      // ATENCIÓN: Pon tu Cloud Name real aquí
       const cloudName = 'ymlcqawz';
       final url = Uri.parse(
         'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
       );
 
       final request = http.MultipartRequest('POST', url)
-        ..fields['upload_preset'] = 'guia_norte_preset'; // Tu preset Unsigned
+        ..fields['upload_preset'] = 'guia_norte_preset';
 
-      // Adjuntamos la imagen leyendo los bytes directamente (ideal para web)
+      // Usar nombre fijo 'perfil_logo.jpg' soluciona el error silencioso de la web
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
           _imagenBytes!,
-          filename: _imagenSeleccionada!.name,
+          filename: 'perfil_logo.jpg',
         ),
       );
 
@@ -135,7 +152,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
         final responseString = utf8.decode(responseData);
         final jsonMap = json.decode(responseString);
 
-        return jsonMap['secure_url']; // Esta es la URL pública generada
+        return jsonMap['secure_url'];
       } else {
         debugPrint('Error de Cloudinary: ${response.statusCode}');
       }
@@ -161,7 +178,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
 
     try {
       // 1. Subimos la imagen a Cloudinary
-      if (_imagenSeleccionada != null) {
+      if (_imagenBytes != null) {
         _logoUrl = await _subirImagenACloudinary();
       }
 
@@ -180,7 +197,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
           'direccion': _direccionController.text,
           'plan_id': _planSeleccionado,
           'servicio_id': _servicioSeleccionado,
-          'logo_url': _logoUrl, // Pasamos la URL al backend
+          'logo_url': _logoUrl,
         }),
       );
 
