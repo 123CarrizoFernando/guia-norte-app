@@ -276,7 +276,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                value: _categoriaSeleccionada,
+                initialValue: _categoriaSeleccionada,
                 items: _categorias
                     .map(
                       (cat) => DropdownMenuItem<int>(
@@ -305,7 +305,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                value: _rubroSeleccionado,
+                initialValue: _rubroSeleccionado,
                 items: _rubros
                     .map(
                       (rubro) => DropdownMenuItem<int>(
@@ -334,7 +334,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                value: _servicioSeleccionado,
+                initialValue: _servicioSeleccionado,
                 items: _servicios
                     .map(
                       (serv) => DropdownMenuItem<int>(
@@ -418,7 +418,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
               const SizedBox(height: 16),
 
               DropdownButtonFormField<int>(
-                value: _planSeleccionado,
+                initialValue: _planSeleccionado,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),

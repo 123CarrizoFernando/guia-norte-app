@@ -557,10 +557,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: perfilData!['plan_id'] == 3
-                                      ? Colors.amber.withOpacity(0.2)
+                                      ? Colors.amber.withValues(alpha: 0.2)
                                       : (perfilData!['plan_id'] == 2
-                                            ? Colors.lightBlue.withOpacity(0.2)
-                                            : Colors.grey.withOpacity(0.2)),
+                                            ? Colors.lightBlue.withValues(
+                                                alpha: 0.2,
+                                              )
+                                            : Colors.grey.withValues(
+                                                alpha: 0.2,
+                                              )),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
@@ -695,7 +699,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: Theme.of(context).primaryColor
-                                  .withOpacity(0.1),
+                                  .withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: Theme.of(context).primaryColor,

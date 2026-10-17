@@ -292,11 +292,10 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
           user = userCredential.user;
         } else {
           final googleSignIn = GoogleSignIn.instance;
-          final GoogleSignInAccount? googleUser = await googleSignIn
+          final GoogleSignInAccount googleUser = await googleSignIn
               .authenticate();
-          if (googleUser == null) return;
           final GoogleSignInAuthentication googleAuth =
-              await googleUser.authentication;
+              googleUser.authentication;
           final AuthCredential credential = GoogleAuthProvider.credential(
             idToken: googleAuth.idToken,
           );
@@ -632,10 +631,10 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       decoration: BoxDecoration(
                         color: abierto
                             ? (isDark
-                                  ? Colors.green.withOpacity(0.2)
+                                  ? Colors.green.withValues(alpha: 0.2)
                                   : Colors.green[50])
                             : (isDark
-                                  ? Colors.red.withOpacity(0.2)
+                                  ? Colors.red.withValues(alpha: 0.2)
                                   : Colors.red[50]),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(

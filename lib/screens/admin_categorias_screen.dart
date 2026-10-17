@@ -65,26 +65,33 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
         .replaceAll('ú', 'u');
 
     // 3. Comparamos con las palabras limpias (sin tildes)
-    if (n.contains('salud') || n.contains('medicina') || n.contains('medico'))
+    if (n.contains('salud') || n.contains('medicina') || n.contains('medico')) {
       return Icons.medical_services;
+    }
     if (n.contains('construccion') ||
         n.contains('obra') ||
-        n.contains('albanil'))
+        n.contains('albanil')) {
       return Icons.construction;
+    }
     // Buscamos "mecanic" para que atrape mecanica, mecanico, etc.
-    if (n.contains('mecanic') || n.contains('auto') || n.contains('moto'))
+    if (n.contains('mecanic') || n.contains('auto') || n.contains('moto')) {
       return Icons.car_repair;
+    }
     if (n.contains('comida') || n.contains('gastro')) return Icons.restaurant;
     if (n.contains('educacion') || n.contains('clase')) return Icons.school;
-    if (n.contains('belleza') || n.contains('estetica') || n.contains('pelo'))
+    if (n.contains('belleza') || n.contains('estetica') || n.contains('pelo')) {
       return Icons.face_retouching_natural;
-    if (n.contains('tecnologia') || n.contains('pc') || n.contains('celular'))
+    }
+    if (n.contains('tecnologia') || n.contains('pc') || n.contains('celular')) {
       return Icons.computer;
-    if (n.contains('hogar') || n.contains('limpieza'))
+    }
+    if (n.contains('hogar') || n.contains('limpieza')) {
       return Icons.cleaning_services;
+    }
     if (n.contains('legal') || n.contains('abogado')) return Icons.gavel;
-    if (n.contains('ropa') || n.contains('indumentaria'))
+    if (n.contains('ropa') || n.contains('indumentaria')) {
       return Icons.checkroom;
+    }
 
     return Icons.folder; // Ícono por defecto
   }
@@ -351,7 +358,9 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
                           // Si estamos buscando, expandimos las carpetas automáticamente
                           initiallyExpanded: _searchQuery.isNotEmpty,
                           leading: CircleAvatar(
-                            backgroundColor: Colors.indigo.withOpacity(0.1),
+                            backgroundColor: Colors.indigo.withValues(
+                              alpha: 0.1,
+                            ),
                             // Aquí usamos la función del ícono inteligente
                             child: Icon(
                               _obtenerIconoInteligente(c['nombre']),

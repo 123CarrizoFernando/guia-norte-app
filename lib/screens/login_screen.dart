@@ -39,11 +39,10 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         final GoogleSignIn googleSignIn = GoogleSignIn.instance;
         await googleSignIn.initialize();
-        final GoogleSignInAccount googleUser =
-            await googleSignIn.authenticate();
+        final GoogleSignInAccount googleUser = await googleSignIn
+            .authenticate();
 
-        final GoogleSignInAuthentication googleAuth =
-            await googleUser.authentication;
+        final GoogleSignInAuthentication googleAuth = googleUser.authentication;
         final AuthCredential credential = GoogleAuthProvider.credential(
           idToken: googleAuth.idToken,
         );

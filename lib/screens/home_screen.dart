@@ -190,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
             if (FirebaseAuth.instance.currentUser?.email ==
                 'yoprogramador99@gmail.com')
               ListTile(
-                tileColor: Colors.amber.withOpacity(0.1),
+                tileColor: Colors.amber.withValues(alpha: 0.1),
                 leading: const Icon(
                   Icons.admin_panel_settings,
                   color: Colors.amber,
@@ -319,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Icon(
                         Icons.campaign,
                         size: 150,
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                       ),
                     ),
                     Padding(
@@ -480,7 +480,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: isPremium
-                                    ? const Color(0xFF00B4D8).withOpacity(0.5)
+                                    ? const Color(0xFF00B4D8)
+                                          .withValues(alpha: 0.5)
                                     : (isDark
                                           ? Colors.white10
                                           : Colors.black12),

@@ -151,7 +151,7 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
                                             ),
                                             decoration: BoxDecoration(
                                               color: Colors.lightBlue
-                                                  .withOpacity(0.1),
+                                                  .withValues(alpha: 0.1),
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                             ),

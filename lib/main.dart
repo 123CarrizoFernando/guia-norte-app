@@ -42,7 +42,7 @@ class GuiaDelNorteApp extends StatelessWidget {
     // ValueListenableBuilder "escucha" los cambios del botón y repinta la app
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
-      builder: (_, ThemeMode currentMode, __) {
+      builder: (_, ThemeMode currentMode, _) {
         return MaterialApp(
           title: 'Guía del Norte',
           debugShowCheckedModeBanner: false,
