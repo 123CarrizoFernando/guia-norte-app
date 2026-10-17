@@ -24,13 +24,9 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   late TextEditingController _descripcionController;
   late TextEditingController _telefonoController;
   late TextEditingController _direccionController;
-
-  // Nuevos controladores para Redes Sociales
   late TextEditingController _instagramController;
   late TextEditingController _facebookController;
 
-  // Variables de imagen
-  XFile? _imagenSeleccionada;
   Uint8List? _imagenBytes;
   String? _logoUrlExistente;
   final ImagePicker _picker = ImagePicker();
@@ -39,19 +35,17 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   void initState() {
     super.initState();
     _nombreController = TextEditingController(
-      text: widget.perfilData['nombre_comercial'],
+      text: widget.perfilData['nombre_comercial'] ?? '',
     );
     _descripcionController = TextEditingController(
       text: widget.perfilData['descripcion'] ?? '',
     );
     _telefonoController = TextEditingController(
-      text: widget.perfilData['telefono_contacto'],
+      text: widget.perfilData['telefono_contacto'] ?? '',
     );
     _direccionController = TextEditingController(
       text: widget.perfilData['direccion'] ?? '',
     );
-
-    // Inicializamos las redes sociales
     _instagramController = TextEditingController(
       text: widget.perfilData['instagram'] ?? '',
     );
@@ -59,45 +53,49 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       text: widget.perfilData['facebook'] ?? '',
     );
 
-    _logoUrlExistente =
-        widget.perfilData['logo_url']; // Guardamos la foto que ya tiene
+    _logoUrlExistente = widget.perfilData['logo_url'];
+  }
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _descripcionController.dispose();
+    _telefonoController.dispose();
+    _direccionController.dispose();
+    _instagramController.dispose();
+    _facebookController.dispose();
+    super.dispose();
   }
 
   Future<void> _seleccionarImagen() async {
-    // 1. Abrimos la galería
     final XFile? imagen = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 100,
+      imageQuality: 80,
     );
 
     if (imagen != null) {
-      // 2. Abrimos la pantalla de recorte
+      if (!mounted) return;
       final CroppedFile? croppedFile = await ImageCropper().cropImage(
         sourcePath: imagen.path,
-        aspectRatio: const CropAspectRatio(
-          ratioX: 1,
-          ratioY: 1,
-        ), // Obligamos a que sea un cuadrado perfecto
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Ajustar Logo',
-            toolbarColor: Colors.black, // Mantenemos negro para que se vea siempre bien el recorte
+            toolbarColor: const Color(0xFF0b0f19),
             toolbarWidgetColor: const Color(0xFF00B4D8),
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
             hideBottomControls: false,
           ),
           IOSUiSettings(title: 'Ajustar Logo', aspectRatioLockEnabled: true),
-          // 3. CONFIGURACIÓN WEB SIMPLIFICADA
           WebUiSettings(context: context),
         ],
       );
 
-      // 4. Guardamos la imagen final
       if (croppedFile != null) {
         final bytes = await croppedFile.readAsBytes();
+        if (!mounted) return;
         setState(() {
-          _imagenSeleccionada = XFile(croppedFile.path);
           _imagenBytes = bytes;
         });
       }
@@ -105,7 +103,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   }
 
   Future<String?> _subirImagenACloudinary() async {
-    if (_imagenSeleccionada == null || _imagenBytes == null) return null;
+    if (_imagenBytes == null) return null;
     try {
       const cloudName = 'ymlcqawz';
       final url = Uri.parse(
@@ -113,11 +111,12 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       );
       final request = http.MultipartRequest('POST', url)
         ..fields['upload_preset'] = 'guia_norte_preset';
+
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
           _imagenBytes!,
-          filename: _imagenSeleccionada!.name,
+          filename: 'logo_actualizado.jpg',
         ),
       );
 
@@ -126,6 +125,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
         final responseData = await response.stream.toBytes();
         final jsonMap = json.decode(utf8.decode(responseData));
         return jsonMap['secure_url'];
+      } else {
+        debugPrint('Error Cloudinary status: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Error subiendo a Cloudinary: $e');
@@ -138,29 +139,28 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Obtenemos el usuario actual y su Token de seguridad de Firebase
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('No hay usuario logueado');
 
-      final token = await user.getIdToken(); // ¡Aquí está la credencial!
+      final token = await user.getIdToken();
 
-      // 2. Subimos la imagen si hay una nueva
-      String? nuevaUrlLogo;
-      if (_imagenSeleccionada != null) {
-        nuevaUrlLogo = await _subirImagenACloudinary();
+      String? urlFinalLogo = _logoUrlExistente;
+      if (_imagenBytes != null) {
+        final subidaUrl = await _subirImagenACloudinary();
+        if (subidaUrl != null) {
+          urlFinalLogo = subidaUrl;
+        }
       }
 
       final url = Uri.parse(
         'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfilData['id']}',
       );
 
-      // 3. Enviamos la petición con la credencial en los "headers"
       final response = await http.put(
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization':
-              'Bearer $token', // Le mostramos la credencial al guardia
+          'Authorization': 'Bearer $token',
         },
         body: json.encode({
           'nombre_comercial': _nombreController.text,
@@ -169,7 +169,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
           'direccion': _direccionController.text,
           'instagram': _instagramController.text,
           'facebook': _facebookController.text,
-          'logo_url': nuevaUrlLogo,
+          'logo_url': urlFinalLogo,
         }),
       );
 
@@ -178,6 +178,10 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
         Navigator.pop(context, true);
       } else {
         debugPrint('Error del servidor: ${response.body}');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudieron guardar los cambios')),
+        );
       }
     } catch (e) {
       debugPrint('Error: $e');
@@ -188,36 +192,34 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Detectamos el tema actual
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Theme.of(context)
-          .scaffoldBackgroundColor, // Se adapta al tema
-      appBar: AppBar(
-        title: const Text('Editar Datos'),
-        // Los colores del AppBar ahora vienen definidos por main.dart
-      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(title: const Text('Editar Datos')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              // Círculo de Imagen Actualizable
               GestureDetector(
                 onTap: _seleccionarImagen,
                 child: CircleAvatar(
                   radius: 50,
                   backgroundColor: isDark
                       ? const Color(0xFF2A3143)
-                      : Colors.blue[50], // Fondo sutil adaptativo
+                      : Colors.blue[50],
                   backgroundImage: _imagenBytes != null
                       ? MemoryImage(_imagenBytes!) as ImageProvider
-                      : (_logoUrlExistente != null
+                      : (_logoUrlExistente != null &&
+                                _logoUrlExistente!.isNotEmpty
                             ? NetworkImage(_logoUrlExistente!)
                             : null),
-                  child: (_imagenBytes == null && _logoUrlExistente == null)
+                  child:
+                      (_imagenBytes == null &&
+                          (_logoUrlExistente == null ||
+                              _logoUrlExistente!.isEmpty))
                       ? Icon(
                           Icons.add_a_photo,
                           size: 40,
@@ -236,12 +238,13 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Campos de texto adaptativos
               TextFormField(
                 controller: _nombreController,
+                validator: (val) =>
+                    val == null || val.trim().isEmpty ? 'Requerido' : null,
                 style: TextStyle(
                   color: Theme.of(context).textTheme.bodyLarge?.color,
-                ), // Color de texto dinámico
+                ),
                 decoration: InputDecoration(
                   labelText: 'Nombre Comercial o Tu Nombre',
                   labelStyle: TextStyle(
@@ -321,6 +324,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
               TextFormField(
                 controller: _telefonoController,
+                validator: (val) =>
+                    val == null || val.trim().isEmpty ? 'Requerido' : null,
                 style: TextStyle(
                   color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
@@ -330,7 +335,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                   labelStyle: TextStyle(
                     color: isDark ? Colors.white54 : Colors.black54,
                   ),
-                  hintText: 'Ej: 3873000000',
+                  hintText: 'Ej: 3873569838',
                   hintStyle: TextStyle(
                     color: isDark ? Colors.white30 : Colors.black38,
                   ),
@@ -353,11 +358,43 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 20),
+
+              TextFormField(
+                controller: _direccionController,
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Dirección Física (Opcional)',
+                  labelStyle: TextStyle(
+                    color: isDark ? Colors.white54 : Colors.black54,
+                  ),
+                  hintText: 'Ej: San Martín 450, Tartagal',
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.white30 : Colors.black38,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: isDark ? Colors.white24 : Colors.black26,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).primaryColor,
+                      width: 2,
+                    ),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.location_on,
+                    color: isDark ? Colors.white54 : Colors.black54,
+                  ),
+                ),
+              ),
               const SizedBox(height: 32),
 
-              // ==========================================
-              // REDES SOCIALES
-              // ==========================================
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -374,7 +411,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                 ),
                 keyboardType: TextInputType.url,
                 decoration: InputDecoration(
-                  labelText: 'Enlace de Instagram',
+                  labelText: 'Enlace o Usuario de Instagram',
                   labelStyle: TextStyle(
                     color: isDark ? Colors.white54 : Colors.black54,
                   ),
@@ -442,9 +479,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _actualizarPerfil,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context)
-                        .primaryColor, // Celeste marca
-                    foregroundColor: Colors.white, // El texto dentro del botón primario siempre queda mejor en blanco
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),

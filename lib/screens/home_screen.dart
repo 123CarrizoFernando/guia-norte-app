@@ -30,6 +30,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _cargarDatos();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   // Agrupamos la carga para el Pull-to-Refresh
   Future<void> _cargarDatos() async {
     await Future.wait([fetchCategorias(), fetchDestacados()]);
@@ -41,13 +47,19 @@ class _HomeScreenState extends State<HomeScreen> {
         'https://guia-norte-backend.onrender.com/api/categorias',
       );
       final response = await http.get(url);
+
+      if (!mounted) return; // Evita el error setState() called after dispose()
+
       if (response.statusCode == 200) {
         setState(() {
           categorias = json.decode(response.body);
           isLoading = false;
         });
+      } else {
+        setState(() => isLoading = false);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => isLoading = false);
     }
   }
@@ -57,13 +69,18 @@ class _HomeScreenState extends State<HomeScreen> {
       final response = await http.get(
         Uri.parse('https://guia-norte-backend.onrender.com/api/destacados'),
       );
+
+      if (!mounted) return; // Evita el error setState() called after dispose()
+
       if (response.statusCode == 200) {
         final List<dynamic> perfilesTotales = json.decode(response.body);
         setState(() {
           destacados = perfilesTotales.where((p) => p['plan_id'] == 3).toList();
         });
       }
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('Error cargando destacados: $e');
+    }
   }
 
   void _ejecutarBusqueda(String valor) {
@@ -85,25 +102,35 @@ class _HomeScreenState extends State<HomeScreen> {
         .replaceAll('í', 'i')
         .replaceAll('ó', 'o')
         .replaceAll('ú', 'u');
-    if (n.contains('salud') || n.contains('medicina') || n.contains('medico'))
+    if (n.contains('salud') || n.contains('medicina') || n.contains('medico')) {
       return Icons.medical_services;
+    }
     if (n.contains('construccion') ||
         n.contains('obra') ||
-        n.contains('albanil'))
+        n.contains('albanil')) {
       return Icons.construction;
-    if (n.contains('mecanic') || n.contains('auto') || n.contains('moto'))
+    }
+    if (n.contains('mecanic') || n.contains('auto') || n.contains('moto')) {
       return Icons.car_repair;
+    }
     if (n.contains('comida') || n.contains('gastro')) return Icons.restaurant;
     if (n.contains('educacion') || n.contains('clase')) return Icons.school;
-    if (n.contains('belleza') || n.contains('estetica') || n.contains('pelo'))
+    if (n.contains('belleza') || n.contains('estetica') || n.contains('pelo')) {
       return Icons.face_retouching_natural;
-    if (n.contains('tecnologia') || n.contains('pc') || n.contains('celular'))
+    }
+    if (n.contains('tecnologia') ||
+        n.contains('pc') ||
+        n.contains('celular') ||
+        n.contains('profesional')) {
       return Icons.computer;
-    if (n.contains('hogar') || n.contains('limpieza'))
+    }
+    if (n.contains('hogar') || n.contains('limpieza')) {
       return Icons.cleaning_services;
+    }
     if (n.contains('legal') || n.contains('abogado')) return Icons.gavel;
-    if (n.contains('ropa') || n.contains('indumentaria'))
+    if (n.contains('ropa') || n.contains('indumentaria')) {
       return Icons.checkroom;
+    }
     return Icons.category;
   }
 
@@ -263,16 +290,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-
-      // ==========================================
-      // MAGIA: RefreshIndicator
-      // ==========================================
       body: RefreshIndicator(
         color: Theme.of(context).primaryColor,
         backgroundColor: Theme.of(context).cardColor,
         onRefresh: _cargarDatos,
         child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(), // Clave para que el refresco funcione aunque la pantalla sea corta
+          physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

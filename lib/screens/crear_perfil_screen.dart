@@ -52,6 +52,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
       final response = await http.get(
         Uri.parse('https://guia-norte-backend.onrender.com/api/categorias'),
       );
+      if (!mounted) return;
       if (response.statusCode == 200) {
         setState(() => _categorias = json.decode(response.body));
       }
@@ -67,6 +68,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
           'https://guia-norte-backend.onrender.com/api/categorias/$categoriaId/rubros',
         ),
       );
+      if (!mounted) return;
       if (response.statusCode == 200) {
         setState(() => _rubros = json.decode(response.body));
       }
@@ -82,6 +84,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
           'https://guia-norte-backend.onrender.com/api/rubros/$rubroId/servicios',
         ),
       );
+      if (!mounted) return;
       if (response.statusCode == 200) {
         setState(() => _servicios = json.decode(response.body));
       }
@@ -93,12 +96,12 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
   Future<void> _seleccionarImagen() async {
     final XFile? imagen = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 70,
+      imageQuality: 80,
     );
 
     if (imagen != null) {
-      // Aplicar el recortador a la imagen seleccionada
-      CroppedFile? imagenRecortada = await ImageCropper().cropImage(
+      if (!mounted) return;
+      final CroppedFile? imagenRecortada = await ImageCropper().cropImage(
         sourcePath: imagen.path,
         aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
         uiSettings: [
@@ -109,14 +112,14 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
           ),
-          IOSUiSettings(title: 'Ajustar Logo'),
-          WebUiSettings(context: context, presentStyle: WebPresentStyle.dialog),
+          IOSUiSettings(title: 'Ajustar Logo', aspectRatioLockEnabled: true),
+          WebUiSettings(context: context),
         ],
       );
 
       if (imagenRecortada != null) {
-        // Leer SIEMPRE como bytes para que funcione perfectamente en Web y Android
         final bytes = await imagenRecortada.readAsBytes();
+        if (!mounted) return;
         setState(() {
           _imagenBytes = bytes;
         });
@@ -136,7 +139,6 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
       final request = http.MultipartRequest('POST', url)
         ..fields['upload_preset'] = 'guia_norte_preset';
 
-      // Usar nombre fijo 'perfil_logo.jpg' soluciona el error silencioso de la web
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
@@ -177,12 +179,10 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Subimos la imagen a Cloudinary
       if (_imagenBytes != null) {
         _logoUrl = await _subirImagenACloudinary();
       }
 
-      // 2. Guardamos en nuestra Base de Datos en Neon
       final url = Uri.parse(
         'https://guia-norte-backend.onrender.com/api/perfiles',
       );
