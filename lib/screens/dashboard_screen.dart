@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -25,6 +26,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<dynamic> miGaleria = [];
   bool isLoading = true;
   bool isUploading = false;
+
+  // CONFIGURA AQUÍ TU ALIAS PARA TRANSFERENCIAS:
+  static const String aliasPago = 'guiadelnorte.mp';
 
   @override
   void initState() {
@@ -55,8 +59,207 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) {
       debugPrint('Error: $e');
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  Future<void> _mostrarDialogoPagoPlan(
+    int planId,
+    String nombrePlan,
+    String precio,
+    String linkMp,
+  ) async {
+    String metodoElegido = 'Mercado Pago (Link)';
+    final comprobanteCtrl = TextEditingController();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Activar $nombrePlan ($precio/mes)',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '1. Elige cómo quieres abonar y realiza el pago.\n2. Ingresa debajo el número de comprobante o titular.\n3. Apenas verifiquemos el depósito, daremos de alta tu plan.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: metodoElegido,
+                      decoration: InputDecoration(
+                        labelText: 'Método de Pago',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Mercado Pago (Link)',
+                          child: Text('Pagar con Mercado Pago (Link)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Transferencia Bancaria / Alias',
+                          child: Text('Transferencia / CBU / Alias'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Efectivo / Rapipago / Presencial',
+                          child: Text('Efectivo / Rapipago / Presencial'),
+                        ),
+                      ],
+                      onChanged: (val) =>
+                          setModalState(() => metodoElegido = val!),
+                    ),
+                    const SizedBox(height: 12),
+
+                    if (metodoElegido == 'Mercado Pago (Link)')
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.open_in_new),
+                          label: Text('Abrir Link de Pago ($precio)'),
+                          onPressed: () async {
+                            await launchUrl(
+                              Uri.parse(linkMp),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          },
+                        ),
+                      ),
+
+                    if (metodoElegido == 'Transferencia Bancaria / Alias')
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Transfiere al Alias:',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                Text(
+                                  aliasPago,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.copy),
+                              onPressed: () {
+                                Clipboard.setData(
+                                  const ClipboardData(text: aliasPago),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Alias copiado'),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: comprobanteCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Nº de Comprobante o Nombre del Titular',
+                        hintText: 'Ej: Comprobante #48291 o Juan Pérez',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.check_circle),
+                        label: const Text(
+                          'Ya pagué - Enviar para Verificación',
+                        ),
+                        onPressed: () async {
+                          if (comprobanteCtrl.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Por favor escribe el Nº de comprobante o nombre de quien transfirió',
+                                ),
+                                backgroundColor: Colors.deepOrange,
+                              ),
+                            );
+                            return;
+                          }
+                          Navigator.pop(ctx);
+                          await http.post(
+                            Uri.parse(
+                              'https://guia-norte-backend.onrender.com/api/perfiles/${perfilData!['id']}/solicitar-plan',
+                            ),
+                            headers: {'Content-Type': 'application/json'},
+                            body: json.encode({
+                              'plan_solicitado_id': planId,
+                              'metodo_pago': metodoElegido,
+                              'comprobante_info': comprobanteCtrl.text.trim(),
+                            }),
+                          );
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                '¡Solicitud enviada! Verificaremos tu depósito y daremos de alta tu plan.',
+                              ),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                          cargarPerfilYGaleria();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _subirFotoGaleria() async {
@@ -99,7 +302,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) {
       debugPrint('Error al subir foto: $e');
     } finally {
-      setState(() => isUploading = false);
+      if (mounted) setState(() => isUploading = false);
     }
   }
 
@@ -160,9 +363,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
             )
-          // ==========================================
-          // MAGIA: RefreshIndicator
-          // ==========================================
           : RefreshIndicator(
               color: Theme.of(context).primaryColor,
               backgroundColor: Theme.of(context).cardColor,
@@ -282,14 +482,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         border: Border.all(
                           color: isDark ? Colors.white10 : Colors.black12,
                         ),
-                        boxShadow: [
-                          if (!isDark)
-                            const BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 8,
-                              offset: Offset(0, 4),
-                            ),
-                        ],
                       ),
                       child: Column(
                         children: [
@@ -331,6 +523,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             textAlign: TextAlign.center,
                           ),
+                          if (perfilData!['categoria_nombre'] != null &&
+                              perfilData!['rubro_nombre'] != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '${perfilData!['categoria_nombre']} • ${perfilData!['rubro_nombre']}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Theme.of(context).primaryColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                           const SizedBox(height: 8),
                           Text(
                             'Horario: ${perfilData!['hora_apertura'] ?? '08:00'} a ${perfilData!['hora_cierre'] ?? '18:00'}',
@@ -402,7 +607,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 color: Theme.of(context).primaryColor,
                               ),
                               label: Text(
-                                'Editar mis datos',
+                                'Editar mis datos y rubro',
                                 style: TextStyle(
                                   color: Theme.of(context).primaryColor,
                                 ),
@@ -421,6 +626,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    // ==========================================
+                    // SECCIÓN: MI PORTAFOLIO (Usa _subirFotoGaleria)
+                    // ==========================================
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -466,7 +675,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isDark ? Colors.white10 : Colors.black12,
-                                style: BorderStyle.solid,
                               ),
                             ),
                             child: Center(
@@ -518,6 +726,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                     const SizedBox(height: 24),
+
+                    // ==========================================
+                    // SECCIÓN PLAN Y VERIFICACIÓN DE PAGO
+                    // ==========================================
                     Container(
                       padding: const EdgeInsets.all(20.0),
                       decoration: BoxDecoration(
@@ -526,14 +738,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         border: Border.all(
                           color: isDark ? Colors.white24 : Colors.black12,
                         ),
-                        boxShadow: [
-                          if (!isDark)
-                            const BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 10,
-                              offset: Offset(0, 4),
-                            ),
-                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -541,100 +745,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Plan Actual',
-                                style: TextStyle(
-                                  color: isDark
-                                      ? Colors.white54
-                                      : Colors.black54,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: perfilData!['plan_id'] == 3
-                                      ? Colors.amber.withValues(alpha: 0.2)
-                                      : (perfilData!['plan_id'] == 2
-                                            ? Colors.lightBlue.withValues(
-                                                alpha: 0.2,
-                                              )
-                                            : Colors.grey.withValues(
-                                                alpha: 0.2,
-                                              )),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
+                              const Text('Plan Actual'),
+                              Chip(
+                                label: Text(
                                   perfilData!['plan_id'] == 3
                                       ? 'PREMIUM'
                                       : (perfilData!['plan_id'] == 2
                                             ? 'MEDIO'
                                             : 'BÁSICO'),
-                                  style: TextStyle(
-                                    color: perfilData!['plan_id'] == 3
-                                        ? Colors.amber
-                                        : (perfilData!['plan_id'] == 2
-                                              ? Colors.lightBlue
-                                              : (isDark
-                                                    ? Colors.white
-                                                    : Colors.black87)),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
                                 ),
                               ),
                             ],
                           ),
+                          if (perfilData!['estado_pago'] == 'pendiente') ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.orange),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(
+                                    Icons.hourglass_top,
+                                    color: Colors.orange,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Tu pago está en verificación. Apenas confirmemos el depósito se activará tu nuevo plan.',
+                                      style: TextStyle(fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 16),
-
-                          // SI NO ES PREMIUM (PUEDE SER BÁSICO O MEDIO)
                           if (perfilData!['plan_id'] != 3) ...[
-                            Text(
-                              '¡Consigue más clientes!',
-                              style: TextStyle(
-                                color: isDark ? Colors.white : Colors.black87,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Activa el botón de WhatsApp y tu galería de fotos.',
-                              style: TextStyle(
-                                color: isDark ? Colors.white70 : Colors.black54,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-
                             if (perfilData!['plan_id'] == 1)
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
-                                  onPressed: () async {
-                                    await launchUrl(
-                                      Uri.parse(
-                                        'https://mpago.la/1ygAvpA',
-                                      ), // REEMPLAZA CON LINK MERCADOPAGO 5000
-                                      mode: LaunchMode.externalApplication,
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.arrow_upward,
-                                    color: Colors.white,
+                                  onPressed: () => _mostrarDialogoPagoPlan(
+                                    2,
+                                    'Plan Medio',
+                                    '\$5.000',
+                                    'https://mpago.la/1ygAvpA',
                                   ),
+                                  icon: const Icon(Icons.arrow_upward),
                                   label: const Text(
                                     'Activar Plan Medio (\$5.000/mes)',
                                   ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.blueAccent,
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
                                   ),
                                 ),
                               ),
@@ -642,59 +809,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  await launchUrl(
-                                    Uri.parse(
-                                      'https://mpago.la/2TWNwfq',
-                                    ), // REEMPLAZA CON LINK MERCADOPAGO 20000
-                                    mode: LaunchMode.externalApplication,
-                                  );
-                                },
-                                icon: const Icon(
-                                  Icons.star,
-                                  color: Colors.black87,
+                                onPressed: () => _mostrarDialogoPagoPlan(
+                                  3,
+                                  'Plan Premium',
+                                  '\$20.000',
+                                  'https://mpago.la/2TWNwfq',
                                 ),
+                                icon: const Icon(Icons.star),
                                 label: const Text(
                                   'Ser Destacado Premium (\$20.000/mes)',
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.amber,
                                   foregroundColor: Colors.black87,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
                                 ),
                               ),
                             ),
                           ],
-
-                          if (perfilData!['plan_id'] == 3) ...[
-                            const Text(
-                              '¡Eres Nivel Premium!',
-                              style: TextStyle(
-                                color: Colors.amber,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Actualmente disfrutas del máximo posicionamiento en las búsquedas.',
-                              style: TextStyle(
-                                color: isDark ? Colors.white70 : Colors.black54,
-                              ),
-                            ),
-                          ],
-
                           const SizedBox(height: 24),
                           Divider(
                             color: isDark ? Colors.white24 : Colors.black12,
                           ),
                           const SizedBox(height: 16),
-
-                          // ==========================================
-                          // BANNER: SERVICIO DE ARMADO DE PERFIL
-                          // ==========================================
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -740,7 +876,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   width: double.infinity,
                                   child: OutlinedButton(
                                     onPressed: () async {
-                                      // Reemplaza 5493873XXXXXX por tu número real de Tartagal
                                       final Uri url = Uri.parse(
                                         'https://wa.me/5493873569838?text=Hola,%20quiero%20contratar%20el%20armado%20de%20mi%20perfil%20en%20Guía%20del%20Norte.',
                                       );

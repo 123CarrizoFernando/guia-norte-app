@@ -5,8 +5,6 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -29,12 +27,14 @@ class PerfilDetalleScreen extends StatefulWidget {
 class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   List<dynamic> resenas = [];
   List<dynamic> galeria = [];
-  List<dynamic> profesionalesSimilares = []; // Nueva lista para la competencia
+  List<dynamic> profesionalesSimilares = [];
   bool isLoading = true;
   bool isFavorite = false;
 
+  final _nombreAutorController = TextEditingController();
   final _comentarioController = TextEditingController();
   int _estrellasSeleccionadas = 5;
+  bool _enviandoResena = false;
 
   @override
   void initState() {
@@ -44,10 +44,23 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     verificarSiEsFavorito();
     registrarVisita();
 
+    // Si hay un usuario logueado en Firebase, pre-cargamos su nombre para facilitarle la reseña
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && user.displayName != null) {
+      _nombreAutorController.text = user.displayName!;
+    }
+
     // Si NO es Premium, buscamos a la competencia
     if (widget.perfil['plan_id'] != 3) {
       _cargarCompetencia();
     }
+  }
+
+  @override
+  void dispose() {
+    _nombreAutorController.dispose();
+    _comentarioController.dispose();
+    super.dispose();
   }
 
   // ==========================================
@@ -55,13 +68,9 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   // ==========================================
   Future<void> _cargarCompetencia() async {
     try {
-      // Reemplaza "rubro_id" con el campo exacto que usas en tu DB para la categoría
-      // Por defecto buscaré usando el término de búsqueda general basado en su nombre o descripción
       final nombreComercial = widget.perfil['nombre_comercial'];
       if (nombreComercial == null) return;
 
-      // Hacemos una búsqueda simple usando el nombre para encontrar similares
-      // Si tienes un rubro_id, sería mejor: api/rubros/${widget.perfil['rubro_id']}/profesionales
       final url = Uri.parse(
         'https://guia-norte-backend.onrender.com/api/buscar?q=${Uri.encodeComponent(nombreComercial)}',
       );
@@ -71,7 +80,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
         final List<dynamic> todos = json.decode(response.body);
         if (mounted) {
           setState(() {
-            // Filtramos para que no se muestre a sí mismo en la lista
             profesionalesSimilares = todos
                 .where((p) => p['id'] != widget.perfil['id'])
                 .toList();
@@ -268,8 +276,19 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         if (mounted) {
+          final lista = json.decode(response.body) as List<dynamic>;
           setState(() {
-            resenas = json.decode(response.body);
+            resenas = lista;
+            widget.perfil['total_resenas'] = lista.length;
+            if (lista.isNotEmpty) {
+              final suma = lista.fold<double>(
+                0,
+                (acc, item) =>
+                    acc + ((item['calificacion'] ?? 5) as num).toDouble(),
+              );
+              widget.perfil['calificacion_promedio'] = (suma / lista.length)
+                  .toStringAsFixed(1);
+            }
             isLoading = false;
           });
         }
@@ -281,67 +300,29 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     }
   }
 
-  Future<void> _verificarYMostrarModal() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      try {
-        if (kIsWeb) {
-          GoogleAuthProvider authProvider = GoogleAuthProvider();
-          final UserCredential userCredential = await FirebaseAuth.instance
-              .signInWithPopup(authProvider);
-          user = userCredential.user;
-        } else {
-          final googleSignIn = GoogleSignIn.instance;
-          final GoogleSignInAccount googleUser = await googleSignIn
-              .authenticate();
-          final GoogleSignInAuthentication googleAuth =
-              googleUser.authentication;
-          final AuthCredential credential = GoogleAuthProvider.credential(
-            idToken: googleAuth.idToken,
-          );
-          final UserCredential userCredential = await FirebaseAuth.instance
-              .signInWithCredential(credential);
-          user = userCredential.user;
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error al iniciar sesión')),
-          );
-        }
-        return;
-      }
+  // ==========================================
+  // ENVIAR RESEÑA SIN NECESIDAD DE LOGIN
+  // ==========================================
+  Future<void> enviarResena(StateSetter setModalState) async {
+    if (_comentarioController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Por favor escribe un breve comentario sobre el servicio.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
     }
 
-    if (user != null) {
-      try {
-        final url = Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/clientes/auth',
-        );
-        final response = await http.post(
-          url,
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'uid': user.uid,
-            'email': user.email,
-            'nombre_completo': user.displayName ?? 'Cliente',
-          }),
-        );
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          final data = json.decode(response.body);
-          final int dbUserId = data['usuario_id'];
-          if (!mounted) return;
-          _mostrarModalResena(dbUserId);
-        }
-      } catch (e) {
-        debugPrint('Error autenticando cliente en DB: $e');
-      }
-    }
-  }
+    setModalState(() => _enviandoResena = true);
 
-  Future<void> enviarResena(int usuarioIdDb) async {
-    if (_comentarioController.text.isEmpty) return;
     try {
+      final String autorFinal = _nombreAutorController.text.trim().isEmpty
+          ? 'Vecino de Tartagal'
+          : _nombreAutorController.text.trim();
+
       final url = Uri.parse(
         'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/resenas',
       );
@@ -349,27 +330,43 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
         url,
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'usuario_id': usuarioIdDb,
+          'usuario_id': widget.currentUserId > 0 ? widget.currentUserId : null,
+          'nombre_autor': autorFinal,
           'calificacion': _estrellasSeleccionadas,
-          'comentario': _comentarioController.text,
+          'comentario': _comentarioController.text.trim(),
         }),
       );
-      if (response.statusCode == 201) {
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
         _comentarioController.clear();
-        setState(() => isLoading = true);
-        fetchResenas();
         if (!mounted) return;
         Navigator.pop(context);
+        setState(() => isLoading = true);
+        await fetchResenas();
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('¡Gracias por tu reseña!')),
+          const SnackBar(
+            content: Text('¡Gracias por dejar tu reseña!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo guardar la reseña. Intenta de nuevo.'),
+            backgroundColor: Colors.redAccent,
+          ),
         );
       }
     } catch (e) {
       debugPrint('Error enviando reseña: $e');
+    } finally {
+      setModalState(() => _enviandoResena = false);
     }
   }
 
-  void _mostrarModalResena(int usuarioIdDb) {
+  void _mostrarModalResena() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -387,89 +384,126 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
           ),
           child: StatefulBuilder(
             builder: (BuildContext context, StateSetter setModalState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Calificar Servicio',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (index) {
-                      return IconButton(
-                        icon: Icon(
-                          index < _estrellasSeleccionadas
-                              ? Icons.star
-                              : Icons.star_border,
-                          color: Colors.amber,
-                          size: 36,
-                        ),
-                        onPressed: () => setModalState(
-                          () => _estrellasSeleccionadas = index + 1,
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _comentarioController,
-                    maxLines: 3,
-                    style: TextStyle(
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
-                    ),
-                    decoration: InputDecoration(
-                      hintText:
-                          '¿Cómo fue tu experiencia con este profesional?',
-                      hintStyle: TextStyle(
-                        color: Theme.of(context).textTheme.bodyMedium?.color,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white24
-                              : Colors.black26,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).primaryColor,
-                          width: 2,
-                        ),
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Calificar Servicio',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () => enviarResena(usuarioIdDb),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(5, (index) {
+                        return IconButton(
+                          icon: Icon(
+                            index < _estrellasSeleccionadas
+                                ? Icons.star
+                                : Icons.star_border,
+                            color: Colors.amber,
+                            size: 36,
+                          ),
+                          onPressed: () => setModalState(
+                            () => _estrellasSeleccionadas = index + 1,
+                          ),
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _nombreAutorController,
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Tu nombre (Opcional)',
+                        hintText: 'Ej: Juan Pérez o Vecino de Tartagal',
+                        prefixIcon: const Icon(Icons.person_outline),
+                        enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                            color: isDark ? Colors.white24 : Colors.black26,
+                          ),
                         ),
-                      ),
-                      child: const Text(
-                        'Enviar Reseña',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).primaryColor,
+                            width: 2,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _comentarioController,
+                      maxLines: 3,
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: '¿Cómo fue tu experiencia con este comercio o profesional?',
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                            color: isDark ? Colors.white24 : Colors.black26,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(
+                            color: Theme.of(context).primaryColor,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _enviandoResena
+                            ? null
+                            : () => enviarResena(setModalState),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: _enviandoResena
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Publicar Reseña',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               );
             },
           ),
@@ -912,7 +946,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
               ],
 
               // ==========================================
-              // SECCIÓN DE RESEÑAS
+              // SECCIÓN DE RESEÑAS (LIBRE SIN LOGIN)
               // ==========================================
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -928,7 +962,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       ),
                     ),
                     TextButton.icon(
-                      onPressed: _verificarYMostrarModal,
+                      onPressed: _mostrarModalResena,
                       icon: Icon(
                         Icons.rate_review,
                         size: 18,
@@ -976,13 +1010,19 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       ),
                       itemBuilder: (context, index) {
                         final r = resenas[index];
+                        final String autorNombre =
+                            (r['autor'] != null &&
+                                r['autor'].toString().trim().isNotEmpty)
+                            ? r['autor'].toString()
+                            : 'Vecino de Tartagal';
+
                         return ListTile(
                           leading: CircleAvatar(
                             backgroundColor: isDark
                                 ? const Color(0xFF2A3143)
                                 : Colors.grey[300],
                             child: Text(
-                              r['autor'][0].toUpperCase(),
+                              autorNombre[0].toUpperCase(),
                               style: TextStyle(
                                 color: isDark ? Colors.white : Colors.black87,
                               ),
@@ -990,21 +1030,23 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                           ),
                           title: Row(
                             children: [
-                              Text(
-                                r['autor'],
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .bodyLarge
-                                      ?.color,
+                              Expanded(
+                                child: Text(
+                                  autorNombre,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyLarge
+                                        ?.color,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              const Spacer(),
                               Row(
                                 children: List.generate(5, (starIndex) {
                                   return Icon(
-                                    starIndex < r['calificacion']
+                                    starIndex < (r['calificacion'] ?? 5)
                                         ? Icons.star
                                         : Icons.star_border,
                                     size: 14,
@@ -1017,7 +1059,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                           subtitle: Padding(
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Text(
-                              r['comentario'],
+                              r['comentario'] ?? '',
                               style: TextStyle(
                                 color: Theme.of(context)
                                     .textTheme
@@ -1033,7 +1075,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
 
               // ==========================================
               // SECCIÓN "OTROS PROFESIONALES SIMILARES"
-              // (SOLO SE MUESTRA SI NO ES PREMIUM)
               // ==========================================
               if (planId != 3 && profesionalesSimilares.isNotEmpty) ...[
                 Padding(
