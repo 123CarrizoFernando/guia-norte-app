@@ -24,21 +24,21 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
-  // NUEVO: Selector de tipo de cuenta ('comercio' o 'cliente')
   String _tipoUsuario = 'comercio';
 
   final _nombreController = TextEditingController();
+  final _actividadEspecificaController = TextEditingController();
   final _descripcionController = TextEditingController();
   final _telefonoController = TextEditingController();
   final _direccionController = TextEditingController();
   final _comprobanteController = TextEditingController();
 
   int _planSeleccionado = 1;
+  String _periodoPago = 'mensual'; // 'mensual' o 'anual'
   String _metodoPagoSeleccionado = 'Transferencia Bancaria / Alias';
 
-  // CONFIGURA AQUÍ TU ALIAS Y CVU REAL PARA RECIBIR LOS PAGOS:
-  static const String aliasTransferencia = 'guiadelnorte.mp';
-  static const String titularCuenta = 'Guía del Norte - Tartagal';
+  // ALIAS OFICIAL CONFIGURADO:
+  static const String aliasTransferencia = 'ajeno.buzo.esmere.mp';
 
   List<dynamic> _categorias = [];
   List<dynamic> _rubros = [];
@@ -99,7 +99,6 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
         final lista = json.decode(response.body) as List<dynamic>;
         setState(() {
           _servicios = lista;
-          // Si solo hay un servicio general, lo autoselecciona para facilitar
           if (_servicios.isNotEmpty) {
             _servicioSeleccionado = _servicios.first['id'];
           }
@@ -163,8 +162,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
       final response = await request.send();
       if (response.statusCode == 200) {
         final responseData = await response.stream.toBytes();
-        final responseString = utf8.decode(responseData);
-        final jsonMap = json.decode(responseString);
+        final jsonMap = json.decode(utf8.decode(responseData));
         return jsonMap['secure_url'];
       }
     } catch (e) {
@@ -173,26 +171,18 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
     return null;
   }
 
-  // SI ELIGE SER SOLO CLIENTE (PARA DEJAR RESEÑAS SIN CREAR COMERCIO)
-  Future<void> _continuarComoCliente() async {
-    Navigator.of(context).pop(true);
-  }
-
   Future<void> _guardarPerfil() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_servicioSeleccionado == null) {
+    if (_rubroSeleccionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Por favor selecciona una Categoría, Rubro y Actividad',
-          ),
+          content: Text('Por favor selecciona tu Categoría y Rubro'),
         ),
       );
       return;
     }
 
-    // Si eligió un plan pago (2 o 3), exigir que indique el comprobante/titular
     final bool pidePlanPago = _planSeleccionado > 1;
     if (pidePlanPago && _comprobanteController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -213,12 +203,6 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
         _logoUrl = await _subirImagenACloudinary();
       }
 
-      // SEGURIDAD DE PAGOS:
-      // Si elige Plan 2 ($5.000) o 3 ($20.000), arranca en Plan 1 (Gratis)
-      // con estado_pago = 'pendiente' hasta que el Administrador verifique el depósito.
-      final int planInicialSeguro = 1;
-      final String estadoPago = pidePlanPago ? 'pendiente' : 'aprobado';
-
       final url = Uri.parse(
         'https://guia-norte-backend.onrender.com/api/perfiles',
       );
@@ -231,12 +215,15 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
           'descripcion': _descripcionController.text.trim(),
           'telefono_contacto': _telefonoController.text.trim(),
           'direccion': _direccionController.text.trim(),
-          'plan_id': planInicialSeguro,
+          'plan_id': 1,
           'plan_solicitado_id': _planSeleccionado,
-          'estado_pago': estadoPago,
+          'periodo_pago': _periodoPago,
+          'estado_pago': pidePlanPago ? 'pendiente' : 'aprobado',
           'metodo_pago': pidePlanPago ? _metodoPagoSeleccionado : 'Gratis',
           'comprobante_info': _comprobanteController.text.trim(),
+          'rubro_id': _rubroSeleccionado,
           'servicio_id': _servicioSeleccionado,
+          'actividad_especifica': _actividadEspecificaController.text.trim(),
           'logo_url': _logoUrl,
         }),
       );
@@ -247,9 +234,9 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
           await showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
-              title: const Text('¡Perfil Creado! Solicitud en Revisión'),
+              title: const Text('¡Perfil Creado! Pago en Verificación'),
               content: const Text(
-                'Tu perfil ya está visible en el Plan Básico mientras verificamos tu depósito. Una vez confirmado el pago, tu Plan Destacado se activará automáticamente.',
+                'Tu perfil ya está creado. Apenas verifiquemos tu transferencia/depósito, te enviaremos una notificación confirmando el alta de tu Plan.',
               ),
               actions: [
                 TextButton(
@@ -282,6 +269,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
       appBar: AppBar(
         title: const Text('Configurar Cuenta'),
         backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -289,7 +277,6 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // SELECTOR: ¿CLIENTE O PROFESIONAL/COMERCIO?
             const Text(
               '¿Cómo quieres usar Guía del Norte?',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -386,7 +373,6 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
             ),
             const SizedBox(height: 24),
 
-            // SI ES CLIENTE: NO LE PEDIMOS DATOS DE COMERCIO
             if (_tipoUsuario == 'cliente') ...[
               Container(
                 padding: const EdgeInsets.all(20),
@@ -403,7 +389,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      '¡Tu cuenta de vecino/cliente ya está activa!',
+                      '¡Listo para explorar y dejar reseñas!',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 18,
@@ -412,7 +398,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Con tu sesión iniciada ya puedes calificar con estrellas y dejar reseñas en cualquier comercio o servicio de Tartagal.',
+                      'No necesitas crear un perfil comercial para buscar ni para calificar negocios en Tartagal.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
@@ -424,15 +410,14 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: _continuarComoCliente,
-                        child: const Text('Volver al Inicio para Explorar'),
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text('Ir al Inicio'),
                       ),
                     ),
                   ],
                 ),
               ),
             ] else ...[
-              // FORMULARIO COMPLETO PARA COMERCIOS / PROFESIONALES / EMPRENDEDORES
               Form(
                 key: _formKey,
                 child: Column(
@@ -457,15 +442,6 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                         ),
                       ),
                     ),
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          'Subir Logo o Foto (Opcional)',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 24),
 
                     const Text(
@@ -485,7 +461,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      value: _categoriaSeleccionada,
+                      initialValue: _categoriaSeleccionada,
                       items: _categorias
                           .map(
                             (cat) => DropdownMenuItem<int>(
@@ -513,12 +489,12 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                     DropdownButtonFormField<int>(
                       isExpanded: true,
                       decoration: InputDecoration(
-                        labelText: 'Rubro',
+                        labelText: 'Rubro Principal',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      value: _rubroSeleccionado,
+                      initialValue: _rubroSeleccionado,
                       items: _rubros
                           .map(
                             (rubro) => DropdownMenuItem<int>(
@@ -543,30 +519,18 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    DropdownButtonFormField<int>(
-                      isExpanded: true,
+                    // CAMPO PARA QUE LA PERSONA ESCRIBA SU ACTIVIDAD ESPECÍFICA LIBREMENTE
+                    TextFormField(
+                      controller: _actividadEspecificaController,
                       decoration: InputDecoration(
-                        labelText: 'Servicio / Actividad',
+                        labelText:
+                            'Actividad Específica / Especialidad (Opcional)',
+                        hintText: 'Ej: Tortillas a la parrilla, Reparación de Aires, Inglés infantil...',
+                        helperText: 'Puedes detallar exactamente tu oficio o especialidad',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      value: _servicioSeleccionado,
-                      items: _servicios
-                          .map(
-                            (serv) => DropdownMenuItem<int>(
-                              value: serv['id'],
-                              child: Text(
-                                serv['nombre'],
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: _servicios.isEmpty
-                          ? null
-                          : (val) =>
-                                setState(() => _servicioSeleccionado = val),
                     ),
                     const SizedBox(height: 32),
 
@@ -582,8 +546,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                     TextFormField(
                       controller: _nombreController,
                       decoration: InputDecoration(
-                        labelText:
-                            'Nombre del Negocio / Emprendimiento / Profesional',
+                        labelText: 'Nombre del Negocio / Profesional',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -644,10 +607,10 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
 
                     DropdownButtonFormField<int>(
-                      value: _planSeleccionado,
+                      initialValue: _planSeleccionado,
                       decoration: InputDecoration(
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -660,45 +623,80 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                         ),
                         DropdownMenuItem(
                           value: 2,
-                          child: Text('Plan Medio (\$5.000 / mes)'),
+                          child: Text(
+                            'Plan Medio (\$5.000/mes o \$50.000/año)',
+                          ),
                         ),
                         DropdownMenuItem(
                           value: 3,
-                          child: Text('Plan Premium (\$20.000 / mes)'),
+                          child: Text(
+                            'Plan Premium (\$20.000/mes o \$200.000/año)',
+                          ),
                         ),
                       ],
                       onChanged: (val) =>
                           setState(() => _planSeleccionado = val!),
                     ),
 
-                    // SI ELIGE PLAN PAGO (2 o 3): MOSTRAR MÉTODOS DE PAGO Y VERIFICACIÓN
                     if (_planSeleccionado > 1) ...[
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
+                      // SELECTOR DE MODALIDAD: MENSUAL (DÍA 10) O ANUAL
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Text('Pago Mensual'),
+                              selected: _periodoPago == 'mensual',
+                              onSelected: (_) =>
+                                  setState(() => _periodoPago = 'mensual'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Text(
+                                '🔥 Pago Anual (2 meses gratis)',
+                              ),
+                              selected: _periodoPago == 'anual',
+                              onSelected: (_) =>
+                                  setState(() => _periodoPago = 'anual'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.amber.shade50,
+                          color: const Color(0xFFFFF8E1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.amber.shade700),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              '💳 Verificación de Pago Requerida',
-                              style: TextStyle(
+                            Text(
+                              _periodoPago == 'anual'
+                                  ? '💳 Pago Anual: ${_planSeleccionado == 2 ? "\$50.000" : "\$200.000"} (Cubre 12 meses)'
+                                  : '💳 Pago Mensual: ${_planSeleccionado == 2 ? "\$5.000" : "\$20.000"}',
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
+                                color: Colors.black87,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             const Text(
-                              'Selecciona el método de pago, realiza el depósito y escribe debajo el número de comprobante o nombre del titular. Una vez verificado el depósito, daremos de alta tu plan.',
-                              style: TextStyle(fontSize: 13),
+                              '📌 Importante: El pago mensual cubre el mes en curso. Al iniciar el próximo mes, tienes del día 1 al 10 para abonar la renovación.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.black87,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                             const SizedBox(height: 12),
                             DropdownButtonFormField<String>(
-                              value: _metodoPagoSeleccionado,
+                              initialValue: _metodoPagoSeleccionado,
                               decoration: InputDecoration(
                                 labelText: 'Método de Pago',
                                 filled: true,
@@ -749,7 +747,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                                             'Alias para transferir:',
                                             style: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.grey,
+                                              color: Colors.black54,
                                             ),
                                           ),
                                           Text(
@@ -757,18 +755,17 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
+                                              color: Colors.black,
                                             ),
-                                          ),
-                                          Text(
-                                            'Titular: $titularCuenta',
-                                            style: TextStyle(fontSize: 12),
                                           ),
                                         ],
                                       ),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.copy),
-                                      tooltip: 'Copiar Alias',
+                                      icon: const Icon(
+                                        Icons.copy,
+                                        color: Colors.blueAccent,
+                                      ),
                                       onPressed: () {
                                         Clipboard.setData(
                                           const ClipboardData(
@@ -778,7 +775,9 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
                                               const SnackBar(
-                                                content: Text('Alias copiado'),
+                                                content: Text(
+                                                  'Alias copiado: ajeno.buzo.esmere.mp',
+                                                ),
                                               ),
                                             );
                                       },
@@ -789,6 +788,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _comprobanteController,
+                              style: const TextStyle(color: Colors.black),
                               decoration: InputDecoration(
                                 labelText: 'Nº de Comprobante o Nombre del Titular que pagó',
                                 filled: true,
@@ -845,6 +845,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
   @override
   void dispose() {
     _nombreController.dispose();
+    _actividadEspecificaController.dispose();
     _descripcionController.dispose();
     _telefonoController.dispose();
     _direccionController.dispose();

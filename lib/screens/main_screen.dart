@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -25,22 +26,18 @@ class _MainScreenState extends State<MainScreen> {
   int? profesionalId;
   bool isLoading = true;
 
-  // 1. Agregamos el controlador de páginas
   late PageController _pageController;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
-
-    // 2. Inicializamos el controlador apuntando a la pantalla inicial
     _pageController = PageController(initialPage: _currentIndex);
 
     _verificarSesion();
     _configurarNotificaciones();
   }
 
-  // 3. Es fundamental desechar el controlador cuando se cierra la pantalla para no consumir memoria
   @override
   void dispose() {
     _pageController.dispose();
@@ -48,7 +45,38 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   // ==========================================
-  // CONFIGURACIÓN DE NOTIFICACIONES PUSH
+  // FUNCIÓN QUE ABRE EL PERFIL AL TOCAR LA NOTIFICACIÓN PUSH
+  // ==========================================
+  Future<void> _abrirPerfilDesdeNotificacion(RemoteMessage message) async {
+    final perfilId = message.data['perfil_id'];
+    if (perfilId == null || perfilId.toString().trim().isEmpty) return;
+
+    try {
+      final res = await http.get(
+        Uri.parse(
+          'https://guia-norte-backend.onrender.com/api/perfiles/$perfilId',
+        ),
+      );
+      if (res.statusCode == 200) {
+        final perfilData = json.decode(res.body);
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PerfilDetalleScreen(
+              perfil: perfilData,
+              currentUserId: profesionalId ?? 0,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error abriendo perfil desde notificación: $e');
+    }
+  }
+
+  // ==========================================
+  // CONFIGURACIÓN DE NOTIFICACIONES PUSH Y LISTENERS DE CLIC
   // ==========================================
   Future<void> _configurarNotificaciones() async {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
@@ -69,26 +97,56 @@ class _MainScreenState extends State<MainScreen> {
         } catch (e) {
           debugPrint('Error al suscribirse al tema: $e');
         }
-      } else {
-        debugPrint(
-          'Suscripción a temas ignorada (No soportado en versión Web).',
-        );
       }
-    } else {
-      debugPrint('El usuario denegó los permisos de notificación.');
     }
+
+    // 1. Si la app estaba totalmente CERRADA y el usuario entró tocando la notificación:
+    RemoteMessage? initialMessage = await messaging.getInitialMessage();
+    if (initialMessage != null) {
+      Future.delayed(const Duration(milliseconds: 600), () {
+        _abrirPerfilDesdeNotificacion(initialMessage);
+      });
+    }
+
+    // 2. Si la app estaba en SEGUNDO PLANO (minimizada) y el usuario tocó la notificación:
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      _abrirPerfilDesdeNotificacion(message);
+    });
+
+    // 3. Si el usuario tiene la app ABIERTA en el momento que llega la notificación:
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (!mounted) return;
+      final titulo = message.notification?.title ?? 'Nueva notificación';
+      final cuerpo = message.notification?.body ?? '';
+      final tienePerfil =
+          message.data['perfil_id'] != null &&
+          message.data['perfil_id'].toString().isNotEmpty;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$titulo\n$cuerpo'),
+          duration: const Duration(seconds: 6),
+          action: tienePerfil
+              ? SnackBarAction(
+                  label: 'VER PERFIL',
+                  textColor: Colors.amber,
+                  onPressed: () => _abrirPerfilDesdeNotificacion(message),
+                )
+              : null,
+        ),
+      );
+    });
   }
 
-  // Verifica si el profesional inició sesión
   Future<void> _verificarSesion() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       profesionalId = prefs.getInt('profesional_id');
       isLoading = false;
     });
   }
 
-  // 4. Lógica cuando tocas un ícono en la barra inferior
   void _onItemTapped(int index) {
     setState(() {
       _currentIndex = index;
@@ -96,7 +154,6 @@ class _MainScreenState extends State<MainScreen> {
         _verificarSesion();
       }
     });
-    // Anima el deslizamiento hacia la página correspondiente
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -104,7 +161,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // 5. Lógica cuando deslizas el dedo por la pantalla
   void _onPageChanged(int index) {
     setState(() {
       _currentIndex = index;
@@ -116,7 +172,6 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Detectamos si el tema actual es oscuro
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (isLoading) {
@@ -130,7 +185,6 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    // Definimos qué pantalla se muestra en cada pestaña
     final List<Widget> pantallas = [
       const HomeScreen(),
       const FavoritosScreen(),
@@ -141,18 +195,15 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      // 6. En lugar de cambiar el body secamente, usamos PageView
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
-        physics:
-            const BouncingScrollPhysics(), // Efecto de rebote de iOS/Instagram
+        physics: const BouncingScrollPhysics(),
         children: pantallas,
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: _onItemTapped, // Usamos la nueva función
-        // Adaptación automática de colores
+        onTap: _onItemTapped,
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         selectedItemColor: Theme.of(context).primaryColor,
         unselectedItemColor: isDark ? Colors.white54 : Colors.black54,
@@ -193,13 +244,11 @@ class FavoritosScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      // El Scaffold tomará automáticamente el color de fondo definido en main.dart
       appBar: AppBar(
         title: const Text(
           'Mis Guardados',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        // La AppBar tomará automáticamente los colores de appBarTheme en main.dart
       ),
       body: FutureBuilder<List<dynamic>>(
         future: cargarFavoritos(),
@@ -266,7 +315,7 @@ class FavoritosScreen extends StatelessWidget {
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor, // Se adapta al tema
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: isDark ? Colors.white10 : Colors.black12,

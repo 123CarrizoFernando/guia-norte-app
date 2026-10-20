@@ -28,7 +28,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool isUploading = false;
 
   // CONFIGURA AQUÍ TU ALIAS PARA TRANSFERENCIAS:
-  static const String aliasPago = 'guiadelnorte.mp';
+  static const String aliasPago = 'ajeno.buzo.esmere.mp';
 
   @override
   void initState() {

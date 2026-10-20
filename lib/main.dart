@@ -6,13 +6,13 @@ import 'firebase_options.dart';
 import 'screens/main_screen.dart';
 
 // ==========================================
-// VARIABLE GLOBAL MAGICA: Controla el tema de toda la app
+// VARIABLES GLOBALES: Tema Claro Oficial y Navegador para Notificaciones
 // ==========================================
-final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 // ==========================================
 // 1. MANEJADOR DE NOTIFICACIONES EN SEGUNDO PLANO
-// Debe estar afuera de cualquier clase para funcionar con la app cerrada
 // ==========================================
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -21,16 +21,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 void main() async {
-  // 2. Asegurar la inicialización de los widgets de Flutter
   WidgetsFlutterBinding.ensureInitialized();
-
-  // 3. Inicializar Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  // 4. Configurar el receptor de notificaciones en segundo plano
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // 5. Arrancar la aplicación
   runApp(const GuiaDelNorteApp());
 }
 
@@ -39,29 +33,30 @@ class GuiaDelNorteApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ValueListenableBuilder "escucha" los cambios del botón y repinta la app
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
       builder: (_, ThemeMode currentMode, _) {
         return MaterialApp(
           title: 'Guía del Norte',
+          navigatorKey:
+              navigatorKey, // Clave para abrir perfiles desde notificaciones
           debugShowCheckedModeBanner: false,
-          themeMode: currentMode, // Aquí aplicamos el tema actual
+          themeMode: currentMode,
+
           // ==========================================
-          // TEMA CLARO
+          // TEMA CLARO (PRINCIPAL Y OFICIAL)
           // ==========================================
           theme: ThemeData(
             brightness: Brightness.light,
-            scaffoldBackgroundColor:
-                Colors.grey[100], // Gris muy clarito de fondo
-            primaryColor: const Color(0xFF00B4D8), // Celeste Guía del Norte
+            scaffoldBackgroundColor: Colors.grey[100],
+            primaryColor: const Color(0xFF00B4D8),
             appBarTheme: const AppBarTheme(
               backgroundColor: Colors.white,
-              foregroundColor: Colors.black, // Títulos negros
-              iconTheme: IconThemeData(color: Colors.black87), // Íconos negros
+              foregroundColor: Colors.black,
+              iconTheme: IconThemeData(color: Colors.black87),
               elevation: 1,
             ),
-            cardColor: Colors.white, // Tarjetas blancas
+            cardColor: Colors.white,
             colorScheme: ColorScheme.fromSeed(
               seedColor: const Color(0xFF00B4D8),
               brightness: Brightness.light,
@@ -69,19 +64,19 @@ class GuiaDelNorteApp extends StatelessWidget {
           ),
 
           // ==========================================
-          // TEMA OSCURO
+          // TEMA OSCURO (SECUNDARIO / OPCIONAL)
           // ==========================================
           darkTheme: ThemeData(
             brightness: Brightness.dark,
-            scaffoldBackgroundColor: const Color(0xFF0B101E), // Azul noche
-            primaryColor: const Color(0xFF00B4D8), // Celeste Guía del Norte
+            scaffoldBackgroundColor: const Color(0xFF0B101E),
+            primaryColor: const Color(0xFF00B4D8),
             appBarTheme: const AppBarTheme(
               backgroundColor: Colors.black,
-              foregroundColor: Colors.white, // Títulos blancos
-              iconTheme: IconThemeData(color: Colors.white), // Íconos blancos
+              foregroundColor: Colors.white,
+              iconTheme: IconThemeData(color: Colors.white),
               elevation: 0,
             ),
-            cardColor: const Color(0xFF1A1F2E), // Tarjetas azul oscuro
+            cardColor: const Color(0xFF1A1F2E),
             colorScheme: ColorScheme.fromSeed(
               seedColor: const Color(0xFF00B4D8),
               brightness: Brightness.dark,

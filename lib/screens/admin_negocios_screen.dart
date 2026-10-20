@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 
 import 'dart:convert';
 
+import 'package:url_launcher/url_launcher.dart';
+
 class AdminNegociosScreen extends StatefulWidget {
   const AdminNegociosScreen({super.key});
 
@@ -15,7 +17,7 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
   List<dynamic> negociosFiltrados = [];
   bool isLoading = true;
   final TextEditingController _searchController = TextEditingController();
-  String _filtroActual = 'todos'; // 'todos', 'pendientes', 'pagos'
+  String _filtroActual = 'todos';
 
   @override
   void initState() {
@@ -68,11 +70,31 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
     });
   }
 
+  Future<void> _notificarPorWhatsApp(
+    String? telefono,
+    String nombreComercial,
+    int planId,
+    String? vencimiento,
+  ) async {
+    if (telefono == null || telefono.trim().isEmpty) return;
+    final telLimpio = telefono.replaceAll(RegExp(r'[^0-9]'), '');
+    final planNombre = planId == 3 ? 'Plan Premium' : 'Plan Medio';
+    final mensaje =
+        '¡Hola *$nombreComercial*! ✅ Verificamos tu depósito y ya dimos de alta tu *$planNombre* en *Guía del Norte*. '
+        '${vencimiento != null ? "Tu suscripción está cubierta y el próximo vencimiento es el $vencimiento." : ""} ¡Gracias por confiar en nosotros!';
+    final url = Uri.parse(
+      'https://wa.me/$telLimpio?text=${Uri.encodeComponent(mensaje)}',
+    );
+    await launchUrl(url, mode: LaunchMode.externalApplication);
+  }
+
   Future<void> cambiarPlan(
-    int perfilId,
+    Map<String, dynamic> negocio,
     int nuevoPlanId, {
     String estadoPago = 'aprobado',
+    String? periodoPago,
   }) async {
+    final int perfilId = negocio['id'];
     try {
       final response = await http.put(
         Uri.parse(
@@ -83,24 +105,78 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
           'plan_id': nuevoPlanId,
           'estado_pago': estadoPago,
           'plan_solicitado_id': nuevoPlanId,
+          'periodo_pago': periodoPago ?? negocio['periodo_pago'] ?? 'mensual',
         }),
       );
 
       if (response.statusCode == 200) {
+        final respData = json.decode(response.body);
+        final String? fechaVenc = respData['fecha_vencimiento_plan'];
         if (!mounted) return;
+
+        await cargarNegocios();
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Plan y estado actualizados con éxito'),
+          SnackBar(
+            content: Text(
+              nuevoPlanId == 3
+                  ? '¡Plan Premium activado! Se envió notificación a todos los usuarios.'
+                  : '¡Plan actualizado con éxito!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
-        cargarNegocios();
+
+        // Si se aprobó un plan pago, ofrecer avisarle por WhatsApp al instante
+        if (nuevoPlanId > 1) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('✅ Alta Confirmada'),
+              content: Text(
+                'Se activó el plan para "${negocio['nombre_comercial']}" y se envió la notificación Push.\n\n¿Quieres enviarle también el mensaje de confirmación por WhatsApp?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cerrar'),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366),
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.chat),
+                  label: const Text('Avisar por WhatsApp'),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _notificarPorWhatsApp(
+                      negocio['telefono_contacto']?.toString(),
+                      negocio['nombre_comercial'] ?? '',
+                      nuevoPlanId,
+                      fechaVenc,
+                    );
+                  },
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error del servidor: ${response.body}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al cambiar plan'),
+        SnackBar(
+          content: Text('Error de conexión: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -108,12 +184,14 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
   }
 
   void _mostrarOpcionesDePlan(Map<String, dynamic> negocio) {
-    final int perfilId = negocio['id'];
     final String nombreComercial = negocio['nombre_comercial'] ?? 'Local';
-    final int? planSolicitado = negocio['plan_solicitado_id'];
+    final int planSolicitado = negocio['plan_solicitado_id'] ?? 2;
     final String? estadoPago = negocio['estado_pago'];
-    final String? metodoPago = negocio['metodo_pago'];
-    final String? comprobante = negocio['comprobante_info'];
+    final String metodoPago = negocio['metodo_pago'] ?? 'No especificado';
+    final String comprobante = negocio['comprobante_info'] ?? 'Sin detalle';
+    final String periodo = (negocio['periodo_pago'] ?? 'mensual') == 'anual'
+        ? 'ANUAL (12 meses)'
+        : 'MENSUAL (Vence día 10 mes sig.)';
 
     showModalBottomSheet(
       context: context,
@@ -121,7 +199,7 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
         return Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -138,41 +216,61 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
               if (estadoPago == 'pendiente') ...[
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.orange),
+                    color: const Color(0xFFFFF3E0),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.deepOrange, width: 1.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '⚠️ Solicitud Pendiente: Plan ${planSolicitado == 2 ? "Medio (\$5.000)" : "Premium (\$20.000)"}',
+                        '⚠️ Solicitud Pendiente: Plan ${planSolicitado == 3 ? "Premium" : "Medio"}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
+                          fontSize: 15,
                           color: Colors.deepOrange,
                         ),
                       ),
-                      if (metodoPago != null)
-                        Text('Método elegido: $metodoPago'),
-                      if (comprobante != null && comprobante.isNotEmpty)
-                        Text('Ref / Comprobante: $comprobante'),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Modalidad: $periodo',
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Método elegido: $metodoPago',
+                        style: const TextStyle(color: Colors.black87),
+                      ),
+                      Text(
+                        'Ref / Comprobante: $comprobante',
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
+                        height: 46,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
+                            backgroundColor: Colors.green.shade700,
                             foregroundColor: Colors.white,
                           ),
                           icon: const Icon(Icons.check_circle),
-                          label: const Text('Confirmar Depósito y Dar de Alta'),
+                          label: const Text(
+                            'Confirmar Depósito y Dar de Alta',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           onPressed: () {
-                            Navigator.pop(context);
+                            Navigator.pop(sheetContext);
                             cambiarPlan(
-                              perfilId,
-                              planSolicitado ?? 2,
+                              negocio,
+                              planSolicitado > 1 ? planSolicitado : 2,
                               estadoPago: 'aprobado',
                             );
                           },
@@ -194,24 +292,50 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
                 leading: const Icon(Icons.looks_one, color: Colors.grey),
                 title: const Text('Dar de Baja a Plan Básico (Gratis)'),
                 onTap: () {
-                  Navigator.pop(context);
-                  cambiarPlan(perfilId, 1, estadoPago: 'aprobado');
+                  Navigator.pop(sheetContext);
+                  cambiarPlan(negocio, 1, estadoPago: 'aprobado');
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.looks_two, color: Colors.blue),
                 title: const Text('Dar de Alta: Plan Medio (\$5.000 / mes)'),
                 onTap: () {
-                  Navigator.pop(context);
-                  cambiarPlan(perfilId, 2, estadoPago: 'aprobado');
+                  Navigator.pop(sheetContext);
+                  cambiarPlan(
+                    negocio,
+                    2,
+                    estadoPago: 'aprobado',
+                    periodoPago: 'mensual',
+                  );
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.star, color: Colors.amber),
                 title: const Text('Dar de Alta: Plan Premium (\$20.000 / mes)'),
                 onTap: () {
-                  Navigator.pop(context);
-                  cambiarPlan(perfilId, 3, estadoPago: 'aprobado');
+                  Navigator.pop(sheetContext);
+                  cambiarPlan(
+                    negocio,
+                    3,
+                    estadoPago: 'aprobado',
+                    periodoPago: 'mensual',
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.workspace_premium,
+                  color: Colors.purple,
+                ),
+                title: const Text('Dar de Alta: Plan ANUAL (12 Meses)'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  cambiarPlan(
+                    negocio,
+                    3,
+                    estadoPago: 'aprobado',
+                    periodoPago: 'anual',
+                  );
                 },
               ),
             ],
@@ -237,7 +361,6 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
       ),
       body: Column(
         children: [
-          // BUSCADOR SUPERIOR POR NOMBRE O LOCAL
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
@@ -256,7 +379,6 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.grey[100],
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -264,8 +386,6 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
               ),
             ),
           ),
-
-          // FILTROS RÁPIDOS (Todos / Pendientes de Pago / Planes Activos)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -302,10 +422,7 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
               ],
             ),
           ),
-
           const Divider(),
-
-          // LISTA DE NEGOCIOS
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -347,9 +464,15 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Plan activo: ${n['plan_nombre']}'),
+                              if (n['fecha_vencimiento_plan'] != null &&
+                                  n['plan_id'] > 1)
+                                Text(
+                                  '📅 Vence: ${n['fecha_vencimiento_plan'].toString().split('T')[0]}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
                               if (esPendiente)
                                 Text(
-                                  '⚠️ Pide alta en Plan ${n['plan_solicitado_id'] == 2 ? "Medio (\$5.000)" : "Premium (\$20.000)"} (${n['metodo_pago'] ?? "Verificar depósito"})',
+                                  '⚠️ Pide alta en Plan ${n['plan_solicitado_id'] == 3 ? "Premium" : "Medio"} (${n['periodo_pago'] ?? "mensual"}) - ${n['metodo_pago'] ?? ""}',
                                   style: const TextStyle(
                                     color: Colors.deepOrange,
                                     fontWeight: FontWeight.bold,
