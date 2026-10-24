@@ -21,9 +21,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<dynamic> categoriasAlfabeticas = []; // Para el Drawer izquierdo (A-Z)
-  List<dynamic> categoriasInicio =
-      []; // Para el inicio (Frecuencia de uso + A-Z)
+  List<dynamic> categoriasAlfabeticas = [];
+  List<dynamic> categoriasInicio = [];
   List<dynamic> destacados = [];
   Map<int, int> clicsPorCategoria = {};
   bool isLoading = true;
@@ -88,7 +87,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _ordenarListasDeCategorias(List<dynamic> listaBase) {
-    // 1. Copia ordenada estrictamente A-Z para el panel izquierdo
     final List<dynamic> alfa = List<dynamic>.from(listaBase);
     alfa.sort(
       (a, b) => a['nombre'].toString().toLowerCase().compareTo(
@@ -96,13 +94,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    // 2. Copia para el Inicio: Primero las que el usuario más elige, y a igualdad de uso, por orden alfabético
     final List<dynamic> inteligentes = List<dynamic>.from(alfa);
     inteligentes.sort((a, b) {
       final int usoA = clicsPorCategoria[a['id']] ?? 0;
       final int usoB = clicsPorCategoria[b['id']] ?? 0;
       if (usoB != usoA) {
-        return usoB.compareTo(usoA); // Mayor uso primero
+        return usoB.compareTo(usoA);
       }
       return a['nombre'].toString().toLowerCase().compareTo(
         b['nombre'].toString().toLowerCase(),
@@ -228,7 +225,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      // PANEL IZQUIERDO: CATEGORÍAS EN ORDEN ALFABÉTICO CON CONTADOR (X)
       drawer: Drawer(
         backgroundColor: Theme.of(context).cardColor,
         child: Column(
@@ -423,7 +419,6 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // BANNER CON LA PALABRA PROFESIONALES RESTAURADA
               Container(
                 height: 150,
                 width: double.infinity,
@@ -481,7 +476,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 20),
 
-              // CARRUSEL DE CATEGORÍAS (Se ordena según uso del usuario + A-Z y muestra cantidad)
               if (!isLoading) ...[
                 SizedBox(
                   height: 115,
@@ -548,7 +542,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 16),
 
               // ==========================================
-              // SECCIÓN VITRINA VIP: PORTADA + DESCRIPCIÓN + MINIATURAS DE PORTAFOLIO ABAJO
+              // SECCIÓN VITRINA VIP: PORTADA EXCLUSIVA + CARRUSEL DESLIZABLE DE FOTOS
               // ==========================================
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -595,8 +589,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       itemCount: destacados.length,
                       itemBuilder: (context, index) {
                         final prof = destacados[index];
+                        // Usa la portada_url exclusiva (o su logo si no cargó portada)
                         final String? imagenPortada =
-                            prof['portada_url'] ?? prof['logo_url'];
+                            (prof['portada_url'] != null &&
+                                prof['portada_url'].toString().isNotEmpty)
+                            ? prof['portada_url']
+                            : prof['logo_url'];
                         final String? rubroNombre = prof['rubro_nombre'];
                         final int suscriptores =
                             prof['total_suscriptores'] ?? 0;
@@ -606,7 +604,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             ? (prof['fotos_galeria'] as List)
                                   .map((e) => e.toString())
                                   .where((u) => u.isNotEmpty)
-                                  .take(4)
                                   .toList()
                             : [];
 
@@ -645,7 +642,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // BANNER SUPERIOR DE PORTADA (135px)
+                                // BANNER SUPERIOR DE PORTADA EXCLUSIVA (135px)
                                 SizedBox(
                                   height: 135,
                                   width: double.infinity,
@@ -869,7 +866,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ),
 
-                                // CUERPO INFERIOR: DESCRIPCIÓN + 4 MINIATURAS DE SU PORTAFOLIO ABAJO
+                                // CUERPO INFERIOR: DESCRIPCIÓN + CARRUSEL DESLIZABLE DE FOTOS
                                 Padding(
                                   padding: const EdgeInsets.all(14.0),
                                   child: Column(
@@ -923,43 +920,39 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ],
                                       ),
 
-                                      // MINIATURAS DEL PORTAFOLIO DEBAJO DE LA PORTADA
+                                      // MINIATURAS DESLIZABLES CON EL DEDO DEBAJO DE LA DESCRIPCIÓN
                                       if (fotosGaleria.isNotEmpty) ...[
                                         const SizedBox(height: 12),
                                         SizedBox(
-                                          height: 68,
-                                          child: Row(
-                                            children: List.generate(
-                                              fotosGaleria.length > 4
-                                                  ? 4
-                                                  : fotosGaleria.length,
-                                              (imgIdx) {
-                                                return Expanded(
-                                                  child: Container(
-                                                    margin: EdgeInsets.only(
-                                                      right: imgIdx < 3 ? 8 : 0,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            10,
-                                                          ),
-                                                      border: Border.all(
-                                                        color: isDark
-                                                            ? Colors.white12
-                                                            : Colors.black12,
-                                                      ),
-                                                      image: DecorationImage(
-                                                        image: NetworkImage(
-                                                          fotosGaleria[imgIdx],
-                                                        ),
-                                                        fit: BoxFit.cover,
-                                                      ),
-                                                    ),
+                                          height: 74,
+                                          child: ListView.builder(
+                                            scrollDirection: Axis.horizontal,
+                                            physics:
+                                                const BouncingScrollPhysics(),
+                                            itemCount: fotosGaleria.length,
+                                            itemBuilder: (context, imgIdx) {
+                                              return Container(
+                                                width: 82,
+                                                margin: const EdgeInsets.only(
+                                                  right: 8,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                  border: Border.all(
+                                                    color: isDark
+                                                        ? Colors.white12
+                                                        : Colors.black12,
                                                   ),
-                                                );
-                                              },
-                                            ),
+                                                  image: DecorationImage(
+                                                    image: NetworkImage(
+                                                      fotosGaleria[imgIdx],
+                                                    ),
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                                ),
+                                              );
+                                            },
                                           ),
                                         ),
                                       ],

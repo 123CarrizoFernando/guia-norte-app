@@ -10,6 +10,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'reproductor_video_screen.dart';
+
 import 'visor_imagenes_screen.dart';
 
 class PerfilDetalleScreen extends StatefulWidget {
@@ -1108,11 +1110,18 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       );
 
                       return GestureDetector(
-                        onTap: () async {
+                        onTap: () {
                           if (esVideo) {
-                            await launchUrl(
-                              Uri.parse(item['imagen_url']),
-                              mode: LaunchMode.externalApplication,
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ReproductorVideoScreen(
+                                  videoUrl: item['imagen_url'],
+                                  titulo:
+                                      widget.perfil['nombre_comercial'] ??
+                                      'Video',
+                                ),
+                              ),
                             );
                           } else {
                             Navigator.push(

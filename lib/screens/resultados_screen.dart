@@ -91,25 +91,19 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
           isLoading = false;
         });
 
-        // Cargar las 4 miniaturas de cada perfil (usa fotos_galeria si viene del backend, o consulta su galería)
         for (final prof in lista) {
           final int id = prof['id'];
-          final int planId = prof['plan_id'] ?? prof['nivel'] ?? 1;
-          if (planId > 1) {
-            if (prof['fotos_galeria'] != null &&
-                prof['fotos_galeria'] is List) {
-              final List<String> urls = (prof['fotos_galeria'] as List)
-                  .map((e) => e.toString())
-                  .where((u) => u.isNotEmpty)
-                  .take(4)
-                  .toList();
-              if (urls.isNotEmpty && mounted) {
-                setState(() => galeriasPorPerfil[id] = urls);
-                continue;
-              }
+          if (prof['fotos_galeria'] != null && prof['fotos_galeria'] is List) {
+            final List<String> urls = (prof['fotos_galeria'] as List)
+                .map((e) => e.toString())
+                .where((u) => u.isNotEmpty)
+                .toList();
+            if (urls.isNotEmpty && mounted) {
+              setState(() => galeriasPorPerfil[id] = urls);
+              continue;
             }
-            _cargarGaleriaIndividual(id);
           }
+          _cargarGaleriaIndividual(id);
         }
       } else {
         if (mounted) setState(() => isLoading = false);
@@ -130,9 +124,9 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
       if (res.statusCode == 200 && mounted) {
         final List<dynamic> data = json.decode(res.body);
         final List<String> urls = data
+            .where((img) => (img['tipo'] ?? 'imagen') == 'imagen')
             .map((img) => (img['imagen_url'] ?? '').toString())
             .where((u) => u.isNotEmpty)
-            .take(4)
             .toList();
         if (urls.isNotEmpty) {
           setState(() => galeriasPorPerfil[perfilId] = urls);
@@ -239,7 +233,6 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // CABECERA: LOGO CIRCULAR + NOMBRE + INSIGNIA DESTACADO + CORAZÓN
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -401,7 +394,6 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
 
                           const SizedBox(height: 12),
 
-                          // DESCRIPCIÓN DEL COMERCIO / PROFESIONAL
                           Text(
                             (prof['descripcion'] != null &&
                                     prof['descripcion']
@@ -421,45 +413,38 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
 
-                          // FILA DE MINIATURAS DEL PORTAFOLIO (Hasta 4 fotos abajo tal cual el diseño)
+                          // CARRUSEL HORIZONTAL DESLIZABLE CON EL DEDO
                           if (fotos.isNotEmpty) ...[
                             const SizedBox(height: 14),
                             SizedBox(
-                              height: 76,
-                              child: Row(
-                                children: List.generate(
-                                  fotos.length > 4 ? 4 : fotos.length,
-                                  (imgIndex) {
-                                    return Expanded(
-                                      child: Container(
-                                        margin: EdgeInsets.only(
-                                          right: imgIndex < 3 ? 8 : 0,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
+                              height: 78,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                physics: const BouncingScrollPhysics(),
+                                itemCount: fotos.length,
+                                itemBuilder: (context, imgIndex) {
+                                  return Container(
+                                    width: 84,
+                                    margin: const EdgeInsets.only(right: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.08,
                                           ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withValues(
-                                                alpha: 0.08,
-                                              ),
-                                              blurRadius: 4,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                          image: DecorationImage(
-                                            image: NetworkImage(
-                                              fotos[imgIndex],
-                                            ),
-                                            fit: BoxFit.cover,
-                                          ),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
                                         ),
+                                      ],
+                                      image: DecorationImage(
+                                        image: NetworkImage(fotos[imgIndex]),
+                                        fit: BoxFit.cover,
                                       ),
-                                    );
-                                  },
-                                ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ],

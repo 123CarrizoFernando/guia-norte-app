@@ -7,12 +7,14 @@ import 'dart:convert';
 
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'editar_perfil_screen.dart';
 import 'crear_perfil_screen.dart';
 import 'main_screen.dart';
 import 'visor_imagenes_screen.dart';
+import 'reproductor_video_screen.dart';
 import '../main.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -28,6 +30,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<dynamic> miGaleria = [];
   bool isLoading = true;
   bool isUploading = false;
+  bool isUploadingPortada = false;
 
   static const String aliasPago = 'ajeno.buzo.esmere.mp';
 
@@ -69,6 +72,186 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return url.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '.jpg');
     }
     return url;
+  }
+
+  // ==========================================
+  // SUBIR O CAMBIAR FOTO DE PORTADA EXCLUSIVA (Formato Panorámico 16:9)
+  // ==========================================
+  Future<void> _cambiarFotoPortada() async {
+    final picker = ImagePicker();
+    final XFile? imagen = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (imagen == null) return;
+
+    if (!mounted) return;
+    final CroppedFile? croppedFile = await ImageCropper().cropImage(
+      sourcePath: imagen.path,
+      aspectRatio: const CropAspectRatio(ratioX: 16, ratioY: 9),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Encuadrar Portada',
+          toolbarColor: const Color(0xFF0b0f19),
+          toolbarWidgetColor: Colors.white,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(title: 'Encuadrar Portada', aspectRatioLockEnabled: true),
+        WebUiSettings(context: context),
+      ],
+    );
+
+    if (croppedFile == null) return;
+
+    setState(() => isUploadingPortada = true);
+
+    try {
+      final bytes = await croppedFile.readAsBytes();
+      const cloudName = 'ymlcqawz';
+      final urlCloudinary = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+      );
+      final request = http.MultipartRequest('POST', urlCloudinary)
+        ..fields['upload_preset'] = 'guia_norte_preset';
+      request.files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: 'portada.jpg'),
+      );
+
+      final responseCloudinary = await request.send();
+      if (responseCloudinary.statusCode == 200) {
+        final responseData = await responseCloudinary.stream.toBytes();
+        final jsonMap = json.decode(utf8.decode(responseData));
+        final secureUrl = jsonMap['secure_url'];
+
+        await http.put(
+          Uri.parse(
+            'https://guia-norte-backend.onrender.com/api/perfiles/${perfilData!['id']}/portada',
+          ),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'portada_url': secureUrl}),
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('¡Foto de portada actualizada con éxito!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        cargarPerfilYGaleria();
+      }
+    } catch (e) {
+      debugPrint('Error al subir portada: $e');
+    } finally {
+      if (mounted) setState(() => isUploadingPortada = false);
+    }
+  }
+
+  // ==========================================
+  // REEMPLAZAR / EDITAR UNA FOTO EXISTENTE DEL PORTAFOLIO
+  // ==========================================
+  Future<void> _editarFotoGaleria(int fotoId) async {
+    final picker = ImagePicker();
+    final XFile? nuevaImagen = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 75,
+    );
+    if (nuevaImagen == null) return;
+
+    setState(() => isUploading = true);
+
+    try {
+      final bytes = await nuevaImagen.readAsBytes();
+      const cloudName = 'ymlcqawz';
+      final urlCloudinary = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+      );
+      final request = http.MultipartRequest('POST', urlCloudinary)
+        ..fields['upload_preset'] = 'guia_norte_preset';
+      request.files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: nuevaImagen.name),
+      );
+
+      final responseCloudinary = await request.send();
+      if (responseCloudinary.statusCode == 200) {
+        final responseData = await responseCloudinary.stream.toBytes();
+        final jsonMap = json.decode(utf8.decode(responseData));
+        final secureUrl = jsonMap['secure_url'];
+
+        final resp = await http.put(
+          Uri.parse(
+            'https://guia-norte-backend.onrender.com/api/galeria/$fotoId',
+          ),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'imagen_url': secureUrl}),
+        );
+
+        if (resp.statusCode == 200 && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Imagen reemplazada correctamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          cargarPerfilYGaleria();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error editando foto: $e');
+    } finally {
+      if (mounted) setState(() => isUploading = false);
+    }
+  }
+
+  // ==========================================
+  // ELIMINAR UNA FOTO O VIDEO DEL PORTAFOLIO
+  // ==========================================
+  Future<void> _eliminarItemGaleria(int fotoId, bool esVideo) async {
+    final bool? confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(esVideo ? '¿Eliminar video?' : '¿Eliminar foto?'),
+        content: const Text(
+          'Se quitará de tu portafolio público de forma permanente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      final resp = await http.delete(
+        Uri.parse(
+          'https://guia-norte-backend.onrender.com/api/galeria/$fotoId',
+        ),
+      );
+      if (resp.statusCode == 200 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Eliminado de tu portafolio'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        cargarPerfilYGaleria();
+      }
+    } catch (e) {
+      debugPrint('Error eliminando archivo: $e');
+    }
   }
 
   Future<void> _mostrarDialogoPagoPlan(
@@ -299,7 +482,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // SUBIR FOTO (Básico: 3 | Medio: 10 | Premium: 20)
   Future<void> _subirFotoGaleria() async {
     final int planActual = perfilData?['plan_id'] ?? 1;
     final int limiteFotos = planActual == 3 ? 20 : (planActual == 2 ? 10 : 3);
@@ -374,7 +556,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // SUBIR VIDEO (Exclusivo Plan Premium: hasta 2 videos)
   Future<void> _subirVideoGaleria() async {
     final int planActual = perfilData?['plan_id'] ?? 1;
     if (planActual != 3) {
@@ -790,8 +971,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
+
+                    // ==========================================
+                    // TARJETA PRINCIPAL DE PERFIL Y FOTO DE PORTADA EXCLUSIVA
+                    // ==========================================
                     Container(
-                      padding: const EdgeInsets.all(20.0),
                       decoration: BoxDecoration(
                         color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(16),
@@ -799,143 +983,226 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           color: isDark ? Colors.white10 : Colors.black12,
                         ),
                       ),
+                      clipBehavior: Clip.antiAlias,
                       child: Column(
                         children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isDark
-                                  ? const Color(0xFF2A3143)
-                                  : Colors.grey[200],
-                              image: perfilData!['logo_url'] != null
-                                  ? DecorationImage(
-                                      image: NetworkImage(
-                                        perfilData!['logo_url'],
-                                      ),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : null,
-                            ),
-                            child: perfilData!['logo_url'] == null
-                                ? Icon(
-                                    Icons.store,
-                                    size: 40,
-                                    color: Theme.of(context).primaryColor,
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            perfilData!['nombre_comercial'],
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .bodyLarge
-                                  ?.color,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          if (perfilData!['categoria_nombre'] != null &&
-                              perfilData!['rubro_nombre'] != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              '${perfilData!['categoria_nombre']} • ${perfilData!['rubro_nombre']}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Theme.of(context).primaryColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                          const SizedBox(height: 8),
-                          Text(
-                            'Horario: ${perfilData!['hora_apertura'] ?? '08:00'} a ${perfilData!['hora_cierre'] ?? '18:00'}',
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.color,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          if (perfilData!['descripcion'] != null &&
-                              perfilData!['descripcion']
-                                  .toString()
-                                  .trim()
-                                  .isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.all(12),
+                          // BANNER DE PORTADA EXCLUSIVA ARRIBA DEL LOGO
+                          GestureDetector(
+                            onTap: _cambiarFotoPortada,
+                            child: Container(
+                              height: 125,
+                              width: double.infinity,
                               decoration: BoxDecoration(
                                 color: isDark
-                                    ? const Color(0xFF0B101E)
-                                    : Colors.grey[100],
-                                borderRadius: BorderRadius.circular(8),
+                                    ? const Color(0xFF1E293B)
+                                    : Colors.blue.shade50,
+                                image:
+                                    perfilData!['portada_url'] != null &&
+                                        perfilData!['portada_url']
+                                            .toString()
+                                            .isNotEmpty
+                                    ? DecorationImage(
+                                        image: NetworkImage(
+                                          perfilData!['portada_url'],
+                                        ),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
                               ),
-                              child: Text(
-                                perfilData!['descripcion'],
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.color,
-                                  height: 1.4,
-                                ),
-                              ),
-                            )
-                          else
-                            const Text(
-                              'Aún no has descrito tus servicios. ¡Toca "Editar" para contarle a tus clientes qué ofreces!',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.amber,
-                                fontSize: 13,
-                                fontStyle: FontStyle.italic,
+                              child: Stack(
+                                children: [
+                                  Container(color: Colors.black26),
+                                  Center(
+                                    child: isUploadingPortada
+                                        ? const CircularProgressIndicator(
+                                            color: Colors.white,
+                                          )
+                                        : Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black54,
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.panorama,
+                                                  color: Colors.white,
+                                                  size: 16,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  perfilData!['portada_url'] !=
+                                                          null
+                                                      ? 'Cambiar Foto de Portada'
+                                                      : 'Subir Foto de Portada Exclusiva',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                  ),
+                                ],
                               ),
                             ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () async {
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => EditarPerfilScreen(
-                                      perfilData: perfilData!,
+                          ),
+
+                          Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 76,
+                                  height: 76,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isDark
+                                        ? const Color(0xFF2A3143)
+                                        : Colors.grey[200],
+                                    border: Border.all(
+                                      color: Theme.of(context).primaryColor,
+                                      width: 2,
+                                    ),
+                                    image: perfilData!['logo_url'] != null
+                                        ? DecorationImage(
+                                            image: NetworkImage(
+                                              perfilData!['logo_url'],
+                                            ),
+                                            fit: BoxFit.cover,
+                                          )
+                                        : null,
+                                  ),
+                                  child: perfilData!['logo_url'] == null
+                                      ? Icon(
+                                          Icons.store,
+                                          size: 38,
+                                          color: Theme.of(context).primaryColor,
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  perfilData!['nombre_comercial'],
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyLarge
+                                        ?.color,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                if (perfilData!['categoria_nombre'] != null &&
+                                    perfilData!['rubro_nombre'] != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${perfilData!['categoria_nombre']} • ${perfilData!['rubro_nombre']}',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Theme.of(context).primaryColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Horario: ${perfilData!['hora_apertura'] ?? '08:00'} a ${perfilData!['hora_cierre'] ?? '18:00'}',
+                                  style: TextStyle(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                if (perfilData!['descripcion'] != null &&
+                                    perfilData!['descripcion']
+                                        .toString()
+                                        .trim()
+                                        .isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? const Color(0xFF0B101E)
+                                          : Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      perfilData!['descripcion'],
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.color,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  const Text(
+                                    'Aún no has descrito tus servicios. ¡Toca "Editar" para contarle a tus clientes qué ofreces!',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.amber,
+                                      fontSize: 13,
+                                      fontStyle: FontStyle.italic,
                                     ),
                                   ),
-                                );
-                                if (result == true) {
-                                  setState(() => isLoading = true);
-                                  cargarPerfilYGaleria();
-                                }
-                              },
-                              icon: Icon(
-                                Icons.edit,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                              label: Text(
-                                'Editar mis datos, web y rubro',
-                                style: TextStyle(
-                                  color: Theme.of(context).primaryColor,
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () async {
+                                      final result = await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              EditarPerfilScreen(
+                                                perfilData: perfilData!,
+                                              ),
+                                        ),
+                                      );
+                                      if (result == true) {
+                                        setState(() => isLoading = true);
+                                        cargarPerfilYGaleria();
+                                      }
+                                    },
+                                    icon: Icon(
+                                      Icons.edit,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                    label: Text(
+                                      'Editar mis datos, logo, web y rubro',
+                                      style: TextStyle(
+                                        color: Theme.of(context).primaryColor,
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(
+                                        color: Theme.of(context).primaryColor,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
+                              ],
                             ),
                           ),
                         ],
@@ -944,7 +1211,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 24),
 
                     // ==========================================
-                    // SECCIÓN: MI PORTAFOLIO (Básico: 3 | Medio: 10 | Premium: 20 fotos + 2 videos)
+                    // SECCIÓN: MI PORTAFOLIO (CON BOTONES PARA EDITAR Y ELIMINAR CADA FOTO/VIDEO)
                     // ==========================================
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1048,12 +1315,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           )
                         : SizedBox(
-                            height: 120,
+                            height: 145,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
                               itemCount: miGaleria.length,
                               itemBuilder: (context, index) {
                                 final item = miGaleria[index];
+                                final int itemId = item['id'];
                                 final bool esVideo = item['tipo'] == 'video';
                                 final String thumbUrl =
                                     _obtenerMiniaturaCloudinary(
@@ -1061,52 +1330,123 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       item['tipo'],
                                     );
 
-                                return GestureDetector(
-                                  onTap: () async {
-                                    if (esVideo) {
-                                      await launchUrl(
-                                        Uri.parse(item['imagen_url']),
-                                        mode: LaunchMode.externalApplication,
-                                      );
-                                    } else {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              VisorImagenesScreen(
-                                                galeria: miGaleria,
-                                                indexInicial: index,
+                                return Container(
+                                  margin: const EdgeInsets.only(right: 12),
+                                  width: 155,
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          if (esVideo) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    ReproductorVideoScreen(
+                                                      videoUrl:
+                                                          item['imagen_url'],
+                                                      titulo:
+                                                          perfilData!['nombre_comercial'] ??
+                                                          'Video',
+                                                    ),
                                               ),
+                                            );
+                                          } else {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    VisorImagenesScreen(
+                                                      galeria: miGaleria,
+                                                      indexInicial: index,
+                                                    ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            image: DecorationImage(
+                                              image: NetworkImage(thumbUrl),
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                          child: esVideo
+                                              ? Container(
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black38,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
+                                                  child: const Center(
+                                                    child: Icon(
+                                                      Icons.play_circle_fill,
+                                                      color: Colors.white,
+                                                      size: 42,
+                                                    ),
+                                                  ),
+                                                )
+                                              : null,
                                         ),
-                                      );
-                                    }
-                                  },
-                                  child: Container(
-                                    margin: const EdgeInsets.only(right: 12),
-                                    width: 150,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(12),
-                                      image: DecorationImage(
-                                        image: NetworkImage(thumbUrl),
-                                        fit: BoxFit.cover,
                                       ),
-                                    ),
-                                    child: esVideo
-                                        ? Container(
-                                            decoration: BoxDecoration(
-                                              color: Colors.black38,
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                            child: const Center(
-                                              child: Icon(
-                                                Icons.play_circle_fill,
-                                                color: Colors.white,
-                                                size: 42,
+
+                                      // BOTONES FLOTANTES PARA REEMPLAZAR (EDITAR) Y BORRAR
+                                      Positioned(
+                                        top: 6,
+                                        right: 6,
+                                        child: Row(
+                                          children: [
+                                            if (!esVideo)
+                                              GestureDetector(
+                                                onTap: () =>
+                                                    _editarFotoGaleria(itemId),
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    6,
+                                                  ),
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                        color: Colors.black87,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                  child: const Icon(
+                                                    Icons.edit,
+                                                    color: Colors.white,
+                                                    size: 16,
+                                                  ),
+                                                ),
+                                              ),
+                                            const SizedBox(width: 6),
+                                            GestureDetector(
+                                              onTap: () => _eliminarItemGaleria(
+                                                itemId,
+                                                esVideo,
+                                              ),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(
+                                                  6,
+                                                ),
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.redAccent,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.delete_outline,
+                                                  color: Colors.white,
+                                                  size: 16,
+                                                ),
                                               ),
                                             ),
-                                          )
-                                        : null,
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 );
                               },
