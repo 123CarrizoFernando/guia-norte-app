@@ -6,10 +6,12 @@ import 'dart:convert';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dart:typed_data';
 
 import 'dashboard_screen.dart';
+import 'main_screen.dart';
 
 class CrearPerfilScreen extends StatefulWidget {
   final int usuarioId;
@@ -169,6 +171,22 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
       debugPrint('Error subiendo imagen a Cloudinary: $e');
     }
     return null;
+  }
+
+  // GUARDA LA SESIÓN DEL CLIENTE Y REDIRIGE AL INICIO SIN PANTALLA EN BLANCO/NEGRO
+  Future<void> _guardarComoClienteYEntrar() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('profesional_id', widget.usuarioId);
+    await prefs.setString('rol_usuario', 'cliente');
+
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MainScreen(initialIndex: 0),
+      ),
+      (route) => false,
+    );
   }
 
   Future<void> _guardarPerfil() async {
@@ -410,7 +428,8 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () => Navigator.of(context).pop(true),
+                        onPressed:
+                            _guardarComoClienteYEntrar, // <-- CAMBIADO AQUÍ
                         child: const Text('Ir al Inicio'),
                       ),
                     ),
