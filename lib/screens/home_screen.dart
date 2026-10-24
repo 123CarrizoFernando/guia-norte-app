@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'rubros_screen.dart';
 import 'resultados_busqueda_screen.dart';
@@ -20,8 +21,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<dynamic> categorias = [];
+  List<dynamic> categoriasAlfabeticas = []; // Para el Drawer izquierdo (A-Z)
+  List<dynamic> categoriasInicio =
+      []; // Para el inicio (Frecuencia de uso + A-Z)
   List<dynamic> destacados = [];
+  Map<int, int> clicsPorCategoria = {};
   bool isLoading = true;
   final _searchController = TextEditingController();
 
@@ -38,7 +42,75 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _cargarDatos() async {
+    await _cargarPreferenciasUsoCategorias();
     await Future.wait([fetchCategorias(), fetchDestacados()]);
+  }
+
+  Future<void> _cargarPreferenciasUsoCategorias() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? raw = prefs.getString('clics_categorias_usuario');
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final Map<String, dynamic> decoded = json.decode(raw);
+        clicsPorCategoria = decoded.map(
+          (k, v) => MapEntry(int.parse(k), (v as num).toInt()),
+        );
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _registrarClicCategoria(Map<String, dynamic> cat) async {
+    final int id = cat['id'];
+    clicsPorCategoria[id] = (clicsPorCategoria[id] ?? 0) + 1;
+
+    final prefs = await SharedPreferences.getInstance();
+    final Map<String, int> paraGuardar = clicsPorCategoria.map(
+      (k, v) => MapEntry(k.toString(), v),
+    );
+    await prefs.setString('clics_categorias_usuario', json.encode(paraGuardar));
+
+    if (mounted) {
+      setState(() {
+        _ordenarListasDeCategorias(categoriasAlfabeticas);
+      });
+    }
+
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RubrosScreen(
+          categoriaId: cat['id'],
+          categoriaNombre: cat['nombre'],
+        ),
+      ),
+    );
+  }
+
+  void _ordenarListasDeCategorias(List<dynamic> listaBase) {
+    // 1. Copia ordenada estrictamente A-Z para el panel izquierdo
+    final List<dynamic> alfa = List<dynamic>.from(listaBase);
+    alfa.sort(
+      (a, b) => a['nombre'].toString().toLowerCase().compareTo(
+        b['nombre'].toString().toLowerCase(),
+      ),
+    );
+
+    // 2. Copia para el Inicio: Primero las que el usuario más elige, y a igualdad de uso, por orden alfabético
+    final List<dynamic> inteligentes = List<dynamic>.from(alfa);
+    inteligentes.sort((a, b) {
+      final int usoA = clicsPorCategoria[a['id']] ?? 0;
+      final int usoB = clicsPorCategoria[b['id']] ?? 0;
+      if (usoB != usoA) {
+        return usoB.compareTo(usoA); // Mayor uso primero
+      }
+      return a['nombre'].toString().toLowerCase().compareTo(
+        b['nombre'].toString().toLowerCase(),
+      );
+    });
+
+    categoriasAlfabeticas = alfa;
+    categoriasInicio = inteligentes;
   }
 
   Future<void> fetchCategorias() async {
@@ -51,8 +123,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
         setState(() {
-          categorias = json.decode(response.body);
+          _ordenarListasDeCategorias(data);
           isLoading = false;
         });
       } else {
@@ -155,6 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      // PANEL IZQUIERDO: CATEGORÍAS EN ORDEN ALFABÉTICO CON CONTADOR (X)
       drawer: Drawer(
         backgroundColor: Theme.of(context).cardColor,
         child: Column(
@@ -254,6 +328,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
               ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'CATEGORÍAS (A-Z)',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white54 : Colors.black54,
+                  ),
+                ),
+              ),
+            ),
             Expanded(
               child: isLoading
                   ? Center(
@@ -263,21 +351,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     )
                   : ListView.builder(
                       padding: EdgeInsets.zero,
-                      itemCount: categorias.length,
+                      itemCount: categoriasAlfabeticas.length,
                       itemBuilder: (context, index) {
-                        final cat = categorias[index];
+                        final cat = categoriasAlfabeticas[index];
+                        final int cantRubros = cat['cantidad_rubros'] ?? 0;
+
                         return ListTile(
                           leading: Icon(
                             _obtenerIconoInteligente(cat['nombre']),
                             color: isDark ? Colors.white70 : Colors.black54,
                           ),
                           title: Text(
-                            cat['nombre'],
+                            '${cat['nombre']} ($cantRubros)',
                             style: TextStyle(
                               color: Theme.of(context)
                                   .textTheme
                                   .bodyLarge
                                   ?.color,
+                              fontSize: 14,
                             ),
                           ),
                           trailing: Icon(
@@ -287,15 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           onTap: () {
                             Navigator.pop(context);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => RubrosScreen(
-                                  categoriaId: cat['id'],
-                                  categoriaNombre: cat['nombre'],
-                                ),
-                              ),
-                            );
+                            _registrarClicCategoria(cat);
                           },
                         );
                       },
@@ -319,8 +402,8 @@ class _HomeScreenState extends State<HomeScreen> {
             style: const TextStyle(color: Colors.black87),
             onSubmitted: _ejecutarBusqueda,
             decoration: InputDecoration(
-              hintText: 'Estoy buscando en Tartagal...',
-              hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+              hintText: 'Buscar profesionales, comercios, oficios...',
+              hintStyle: TextStyle(color: Colors.grey[600], fontSize: 13),
               prefixIcon: Icon(
                 Icons.search,
                 color: Theme.of(context).primaryColor,
@@ -340,8 +423,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // BANNER CON LA PALABRA PROFESIONALES RESTAURADA
               Container(
-                height: 145,
+                height: 150,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -370,18 +454,19 @@ class _HomeScreenState extends State<HomeScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Text(
-                            'COMERCIOS, OFICIOS Y\nEMPRENDIMIENTOS',
+                            'COMERCIOS, PROFESIONALES,\nOFICIOS Y EMPRENDIMIENTOS',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 22,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                               height: 1.2,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Todo Tartagal conectado en un solo lugar.',
+                            'Los mejores profesionales y negocios de Tartagal en un solo lugar.',
                             style: TextStyle(
+                              fontSize: 13,
                               color: isDark
                                   ? const Color(0xFF00B4D8)
                                   : Colors.white,
@@ -396,29 +481,22 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 20),
 
+              // CARRUSEL DE CATEGORÍAS (Se ordena según uso del usuario + A-Z y muestra cantidad)
               if (!isLoading) ...[
                 SizedBox(
-                  height: 110,
+                  height: 115,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: categorias.length,
+                    itemCount: categoriasInicio.length,
                     itemBuilder: (context, index) {
-                      final cat = categorias[index];
+                      final cat = categoriasInicio[index];
+                      final int cantRubros = cat['cantidad_rubros'] ?? 0;
+
                       return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => RubrosScreen(
-                                categoriaId: cat['id'],
-                                categoriaNombre: cat['nombre'],
-                              ),
-                            ),
-                          );
-                        },
+                        onTap: () => _registrarClicCategoria(cat),
                         child: Container(
-                          width: 85,
+                          width: 90,
                           margin: const EdgeInsets.only(right: 12),
                           child: Column(
                             children: [
@@ -446,7 +524,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                cat['nombre'],
+                                '${cat['nombre']} ($cantRubros)',
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -470,7 +548,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 16),
 
               // ==========================================
-              // SECCIÓN VITRINA VIP: DESTACADOS PREMIUM CON IMAGEN DE PORTADA
+              // SECCIÓN VITRINA VIP: PORTADA + DESCRIPCIÓN + MINIATURAS DE PORTAFOLIO ABAJO
               // ==========================================
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -483,7 +561,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Destacados VIP en Tartagal',
+                      'Profesionales y Comercios VIP',
                       style: TextStyle(
                         fontSize: 19,
                         fontWeight: FontWeight.bold,
@@ -520,6 +598,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         final String? imagenPortada =
                             prof['portada_url'] ?? prof['logo_url'];
                         final String? rubroNombre = prof['rubro_nombre'];
+                        final int suscriptores =
+                            prof['total_suscriptores'] ?? 0;
+
+                        final List<String> fotosGaleria =
+                            (prof['fotos_galeria'] is List)
+                            ? (prof['fotos_galeria'] as List)
+                                  .map((e) => e.toString())
+                                  .where((u) => u.isNotEmpty)
+                                  .take(4)
+                                  .toList()
+                            : [];
 
                         return GestureDetector(
                           onTap: () {
@@ -531,7 +620,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   currentUserId: 1,
                                 ),
                               ),
-                            );
+                            ).then((_) => fetchDestacados());
                           },
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 20),
@@ -556,7 +645,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // BANNER SUPERIOR DE PORTADA (135px de alto)
+                                // BANNER SUPERIOR DE PORTADA (135px)
                                 SizedBox(
                                   height: 135,
                                   width: double.infinity,
@@ -588,7 +677,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         ),
 
-                                      // Sombreado oscuro suave abajo para resaltar textos
                                       Container(
                                         decoration: BoxDecoration(
                                           gradient: LinearGradient(
@@ -597,7 +685,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 alpha: 0.1,
                                               ),
                                               Colors.black.withValues(
-                                                alpha: 0.7,
+                                                alpha: 0.75,
                                               ),
                                             ],
                                             begin: Alignment.topCenter,
@@ -606,7 +694,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ),
 
-                                      // Etiqueta del Rubro arriba a la izquierda
                                       if (rubroNombre != null &&
                                           rubroNombre.isNotEmpty)
                                         Positioned(
@@ -635,7 +722,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         ),
 
-                                      // Insignia Dorada DESTACADO VIP arriba a la derecha
                                       Positioned(
                                         top: 10,
                                         right: 10,
@@ -672,7 +758,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ),
 
-                                      // Logo circular y Nombre sobre el pie de la portada
                                       Positioned(
                                         bottom: 10,
                                         left: 12,
@@ -748,10 +833,28 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       ),
                                                       const SizedBox(width: 4),
                                                       Text(
-                                                        '${prof['calificacion_promedio'] ?? '5.0'} (${prof['total_resenas'] ?? '0'} opiniones)',
+                                                        '${prof['calificacion_promedio'] ?? '5.0'} (${prof['total_resenas'] ?? '0'} op.)',
                                                         style: const TextStyle(
                                                           color: Colors.white70,
-                                                          fontSize: 12,
+                                                          fontSize: 11.5,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 10),
+                                                      const Icon(
+                                                        Icons.people_alt,
+                                                        color: Colors
+                                                            .lightBlueAccent,
+                                                        size: 14,
+                                                      ),
+                                                      const SizedBox(width: 3),
+                                                      Text(
+                                                        '$suscriptores suscriptores',
+                                                        style: const TextStyle(
+                                                          color: Colors
+                                                              .lightBlueAccent,
+                                                          fontSize: 11.5,
+                                                          fontWeight:
+                                                              FontWeight.w600,
                                                         ),
                                                       ),
                                                     ],
@@ -766,53 +869,100 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ),
 
-                                // CUERPO INFERIOR DE LA TARJETA VIP
+                                // CUERPO INFERIOR: DESCRIPCIÓN + 4 MINIATURAS DE SU PORTAFOLIO ABAJO
                                 Padding(
                                   padding: const EdgeInsets.all(14.0),
-                                  child: Row(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(
-                                        child: Text(
-                                          prof['descripcion'] != null &&
-                                                  prof['descripcion']
-                                                      .toString()
-                                                      .trim()
-                                                      .isNotEmpty
-                                              ? prof['descripcion']
-                                              : 'Comercio Destacado Oficial en Tartagal',
-                                          style: TextStyle(
-                                            color: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium
-                                                ?.color,
-                                            fontSize: 13,
-                                            height: 1.3,
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              prof['descripcion'] != null &&
+                                                      prof['descripcion']
+                                                          .toString()
+                                                          .trim()
+                                                          .isNotEmpty
+                                                  ? prof['descripcion']
+                                                  : 'Profesional / Comercio Destacado en Tartagal',
+                                              style: TextStyle(
+                                                color: Theme.of(context)
+                                                    .textTheme
+                                                    .bodyMedium
+                                                    ?.color,
+                                                fontSize: 13.5,
+                                                height: 1.3,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                                          const SizedBox(width: 12),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context)
+                                                  .primaryColor,
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: const Text(
+                                              'Ver Perfil',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(width: 12),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).primaryColor,
-                                          borderRadius: BorderRadius.circular(
-                                            10,
+
+                                      // MINIATURAS DEL PORTAFOLIO DEBAJO DE LA PORTADA
+                                      if (fotosGaleria.isNotEmpty) ...[
+                                        const SizedBox(height: 12),
+                                        SizedBox(
+                                          height: 68,
+                                          child: Row(
+                                            children: List.generate(
+                                              fotosGaleria.length > 4
+                                                  ? 4
+                                                  : fotosGaleria.length,
+                                              (imgIdx) {
+                                                return Expanded(
+                                                  child: Container(
+                                                    margin: EdgeInsets.only(
+                                                      right: imgIdx < 3 ? 8 : 0,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            10,
+                                                          ),
+                                                      border: Border.all(
+                                                        color: isDark
+                                                            ? Colors.white12
+                                                            : Colors.black12,
+                                                      ),
+                                                      image: DecorationImage(
+                                                        image: NetworkImage(
+                                                          fotosGaleria[imgIdx],
+                                                        ),
+                                                        fit: BoxFit.cover,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
                                           ),
                                         ),
-                                        child: const Text(
-                                          'Ver Perfil',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
+                                      ],
                                     ],
                                   ),
                                 ),

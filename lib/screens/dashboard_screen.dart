@@ -2,19 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
 
 import 'dart:convert';
 
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'editar_perfil_screen.dart';
+import 'crear_perfil_screen.dart';
 import 'main_screen.dart';
 import 'visor_imagenes_screen.dart';
 import '../main.dart';
-
-import 'crear_perfil_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final int usuarioId;
@@ -47,14 +46,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (responsePerfil.statusCode == 200) {
         final data = json.decode(responsePerfil.body);
-        setState(() => perfilData = data);
+        if (mounted) setState(() => perfilData = data);
 
         final urlGaleria = Uri.parse(
           'https://guia-norte-backend.onrender.com/api/perfiles/${data['id']}/galeria',
         );
         final responseGaleria = await http.get(urlGaleria);
 
-        if (responseGaleria.statusCode == 200) {
+        if (responseGaleria.statusCode == 200 && mounted) {
           setState(() => miGaleria = json.decode(responseGaleria.body));
         }
       }
@@ -63,6 +62,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  String _obtenerMiniaturaCloudinary(String url, String? tipo) {
+    if (tipo == 'video' && url.contains('/video/upload/')) {
+      return url.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '.jpg');
+    }
+    return url;
   }
 
   Future<void> _mostrarDialogoPagoPlan(
@@ -293,29 +299,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // SUBIR FOTO (Básico: 3 | Medio: 10 | Premium: 20)
   Future<void> _subirFotoGaleria() async {
     final int planActual = perfilData?['plan_id'] ?? 1;
-    final int limiteFotos = planActual == 3 ? 10 : (planActual == 2 ? 3 : 0);
+    final int limiteFotos = planActual == 3 ? 20 : (planActual == 2 ? 10 : 3);
+    final int fotosActuales = miGaleria
+        .where((item) => (item['tipo'] ?? 'imagen') == 'imagen')
+        .length;
 
-    if (planActual == 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Activa el Plan Medio (hasta 3 fotos) o Plan Premium (hasta 10 fotos) para habilitar tu galería.',
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    if (miGaleria.length >= limiteFotos) {
+    if (fotosActuales >= limiteFotos) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             planActual == 3
-                ? 'Alcanzaste el límite máximo de 10 fotos del Plan Premium.'
-                : 'Tu Plan Medio permite hasta 3 fotos. ¡Pásate al Plan Premium para subir hasta 10 fotos!',
+                ? 'Alcanzaste el máximo de 20 fotos del Plan Premium.'
+                : 'Alcanzaste el límite de $limiteFotos fotos de tu plan. ¡Mejora tu plan para subir hasta 20 fotos y 2 videos!',
           ),
           backgroundColor: Colors.deepOrange,
         ),
@@ -326,7 +324,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final picker = ImagePicker();
     final XFile? imagen = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 70,
+      imageQuality: 75,
     );
     if (imagen == null) return;
 
@@ -355,7 +353,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'https://guia-norte-backend.onrender.com/api/perfiles/${perfilData!['id']}/galeria',
           ),
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({'imagen_url': secureUrl}),
+          body: json.encode({'imagen_url': secureUrl, 'tipo': 'imagen'}),
         );
 
         if (respBackend.statusCode == 403 && mounted) {
@@ -376,9 +374,90 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // SUBIR VIDEO (Exclusivo Plan Premium: hasta 2 videos)
+  Future<void> _subirVideoGaleria() async {
+    final int planActual = perfilData?['plan_id'] ?? 1;
+    if (planActual != 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Subir videos (hasta 2) es un beneficio exclusivo del Plan Premium.',
+          ),
+          backgroundColor: Colors.amber,
+        ),
+      );
+      return;
+    }
+
+    final int videosActuales = miGaleria
+        .where((item) => item['tipo'] == 'video')
+        .length;
+    if (videosActuales >= 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Alcanzaste el límite de 2 videos del Plan Premium.'),
+          backgroundColor: Colors.deepOrange,
+        ),
+      );
+      return;
+    }
+
+    final picker = ImagePicker();
+    final XFile? video = await picker.pickVideo(
+      source: ImageSource.gallery,
+      maxDuration: const Duration(seconds: 60),
+    );
+    if (video == null) return;
+
+    setState(() => isUploading = true);
+
+    try {
+      final bytes = await video.readAsBytes();
+      const cloudName = 'ymlcqawz';
+      final urlCloudinary = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$cloudName/video/upload',
+      );
+      final request = http.MultipartRequest('POST', urlCloudinary)
+        ..fields['upload_preset'] = 'guia_norte_preset';
+      request.files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: video.name),
+      );
+
+      final responseCloudinary = await request.send();
+      if (responseCloudinary.statusCode == 200) {
+        final responseData = await responseCloudinary.stream.toBytes();
+        final jsonMap = json.decode(utf8.decode(responseData));
+        final secureUrl = jsonMap['secure_url'];
+
+        final respBackend = await http.post(
+          Uri.parse(
+            'https://guia-norte-backend.onrender.com/api/perfiles/${perfilData!['id']}/galeria',
+          ),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({'imagen_url': secureUrl, 'tipo': 'video'}),
+        );
+
+        if (respBackend.statusCode == 201 && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('¡Video subido con éxito a tu portafolio!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        cargarPerfilYGaleria();
+      }
+    } catch (e) {
+      debugPrint('Error al subir video: $e');
+    } finally {
+      if (mounted) setState(() => isUploading = false);
+    }
+  }
+
   Future<void> _cerrarSesion() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('profesional_id');
+    await prefs.remove('rol_usuario');
 
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
@@ -394,7 +473,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final int planActual = perfilData?['plan_id'] ?? 1;
-    final int limiteFotos = planActual == 3 ? 10 : (planActual == 2 ? 3 : 0);
+    final int limiteFotos = planActual == 3 ? 20 : (planActual == 2 ? 10 : 3);
+    final int fotosSubidas = miGaleria
+        .where((item) => (item['tipo'] ?? 'imagen') == 'imagen')
+        .length;
+    final int videosSubidos = miGaleria
+        .where((item) => item['tipo'] == 'video')
+        .length;
+
     final int diaDelMes = DateTime.now().day;
     final bool mostrarAlertaRenovacion = planActual > 1 && diaDelMes <= 10;
 
@@ -495,7 +581,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Con tu cuenta puedes guardar comercios en Favoritos y dejar reseñas en cualquier servicio de Tartagal.',
+                        'Con tu cuenta puedes guardar comercios en Favoritos, suscribirte a tiendas VIP y dejar reseñas en Tartagal.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 13,
@@ -546,7 +632,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ALERTA DE VENCIMIENTO DEL DÍA 1 AL 10 DE CADA MES
                     if (mostrarAlertaRenovacion) ...[
                       Container(
                         padding: const EdgeInsets.all(14),
@@ -591,7 +676,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: Theme.of(context).cardColor,
                               borderRadius: BorderRadius.circular(16),
@@ -604,13 +689,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 const Icon(
                                   Icons.visibility,
                                   color: Color(0xFF00B4D8),
-                                  size: 32,
+                                  size: 28,
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 6),
                                 Text(
                                   '${perfilData!['visitas_perfil'] ?? 0}',
                                   style: TextStyle(
-                                    fontSize: 24,
+                                    fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                     color: Theme.of(context)
                                         .textTheme
@@ -618,24 +703,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         ?.color,
                                   ),
                                 ),
-                                Text(
-                                  'Visitas al perfil',
-                                  style: TextStyle(
-                                    color: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.color,
-                                    fontSize: 12,
-                                  ),
+                                const Text(
+                                  'Visitas',
+                                  style: TextStyle(fontSize: 11),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: Theme.of(context).cardColor,
                               borderRadius: BorderRadius.circular(16),
@@ -648,13 +727,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 const Icon(
                                   Icons.chat,
                                   color: Color(0xFF25D366),
-                                  size: 32,
+                                  size: 28,
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 6),
                                 Text(
                                   '${perfilData!['clics_whatsapp'] ?? 0}',
                                   style: TextStyle(
-                                    fontSize: 24,
+                                    fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                     color: Theme.of(context)
                                         .textTheme
@@ -662,15 +741,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         ?.color,
                                   ),
                                 ),
+                                const Text(
+                                  'WhatsApp',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? Colors.white10 : Colors.black12,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                const Icon(
+                                  Icons.people_alt,
+                                  color: Colors.amber,
+                                  size: 28,
+                                ),
+                                const SizedBox(height: 6),
                                 Text(
-                                  'Clics a WhatsApp',
+                                  '${perfilData!['total_suscriptores'] ?? 0}',
                                   style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
                                     color: Theme.of(context)
                                         .textTheme
-                                        .bodyMedium
+                                        .bodyLarge
                                         ?.color,
-                                    fontSize: 12,
                                   ),
+                                ),
+                                const Text(
+                                  'Suscriptores',
+                                  style: TextStyle(fontSize: 11),
                                 ),
                               ],
                             ),
@@ -833,29 +944,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 24),
 
                     // ==========================================
-                    // SECCIÓN: MI PORTAFOLIO (Límite 3 Medio / 10 Premium)
+                    // SECCIÓN: MI PORTAFOLIO (Básico: 3 | Medio: 10 | Premium: 20 fotos + 2 videos)
                     // ==========================================
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Mi Portafolio (${miGaleria.length}/$limiteFotos fotos)',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Mi Portafolio',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.color,
+                                ),
+                              ),
+                              Text(
+                                planActual == 3
+                                    ? 'Fotos: $fotosSubidas/20  •  Videos: $videosSubidos/2'
+                                    : 'Fotos: $fotosSubidas/$limiteFotos (Plan ${planActual == 2 ? "Medio" : "Básico"})',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        isUploading
-                            ? SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              )
-                            : TextButton.icon(
+                        if (isUploading)
+                          SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          )
+                        else
+                          Row(
+                            children: [
+                              TextButton.icon(
                                 onPressed: _subirFotoGaleria,
                                 icon: Icon(
                                   Icons.add_a_photo,
@@ -863,12 +996,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   size: 18,
                                 ),
                                 label: Text(
-                                  'Añadir foto',
+                                  '+ Foto',
                                   style: TextStyle(
                                     color: Theme.of(context).primaryColor,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
+                              if (planActual == 3)
+                                TextButton.icon(
+                                  onPressed: _subirVideoGaleria,
+                                  icon: const Icon(
+                                    Icons.videocam,
+                                    color: Colors.amber,
+                                    size: 20,
+                                  ),
+                                  label: const Text(
+                                    '+ Video',
+                                    style: TextStyle(
+                                      color: Colors.amber,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -884,9 +1036,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             child: Center(
                               child: Text(
-                                planActual == 1
-                                    ? 'Pásate al Plan Medio (3 fotos) o Premium (10 fotos) para mostrar tus trabajos.'
-                                    : 'Aún no has subido fotos. La primera foto que subas será tu portada destacada.',
+                                'Sube fotos de tus productos o trabajos (tienes hasta $limiteFotos fotos incluidas en tu plan).',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: Theme.of(context)
@@ -903,18 +1053,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               scrollDirection: Axis.horizontal,
                               itemCount: miGaleria.length,
                               itemBuilder: (context, index) {
-                                return GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            VisorImagenesScreen(
-                                              galeria: miGaleria,
-                                              indexInicial: index,
-                                            ),
-                                      ),
+                                final item = miGaleria[index];
+                                final bool esVideo = item['tipo'] == 'video';
+                                final String thumbUrl =
+                                    _obtenerMiniaturaCloudinary(
+                                      item['imagen_url'],
+                                      item['tipo'],
                                     );
+
+                                return GestureDetector(
+                                  onTap: () async {
+                                    if (esVideo) {
+                                      await launchUrl(
+                                        Uri.parse(item['imagen_url']),
+                                        mode: LaunchMode.externalApplication,
+                                      );
+                                    } else {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              VisorImagenesScreen(
+                                                galeria: miGaleria,
+                                                indexInicial: index,
+                                              ),
+                                        ),
+                                      );
+                                    }
                                   },
                                   child: Container(
                                     margin: const EdgeInsets.only(right: 12),
@@ -922,12 +1087,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(12),
                                       image: DecorationImage(
-                                        image: NetworkImage(
-                                          miGaleria[index]['imagen_url'],
-                                        ),
+                                        image: NetworkImage(thumbUrl),
                                         fit: BoxFit.cover,
                                       ),
                                     ),
+                                    child: esVideo
+                                        ? Container(
+                                            decoration: BoxDecoration(
+                                              color: Colors.black38,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: const Center(
+                                              child: Icon(
+                                                Icons.play_circle_fill,
+                                                color: Colors.white,
+                                                size: 42,
+                                              ),
+                                            ),
+                                          )
+                                        : null,
                                   ),
                                 );
                               },
@@ -957,10 +1136,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               Chip(
                                 label: Text(
                                   planActual == 3
-                                      ? 'PREMIUM (10 Fotos + Web)'
+                                      ? 'PREMIUM (20 Fotos + 2 Videos)'
                                       : (planActual == 2
-                                            ? 'MEDIO (3 Fotos)'
-                                            : 'BÁSICO'),
+                                            ? 'MEDIO (10 Fotos)'
+                                            : 'BÁSICO (3 Fotos)'),
                                 ),
                               ),
                             ],
@@ -1018,7 +1197,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                   icon: const Icon(Icons.arrow_upward),
                                   label: const Text(
-                                    'Activar Plan Medio (\$5.000/mes)',
+                                    'Activar Plan Medio (\$5.000/mes - 10 Fotos)',
                                   ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.blueAccent,

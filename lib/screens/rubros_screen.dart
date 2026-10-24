@@ -36,15 +36,22 @@ class _RubrosScreenState extends State<RubrosScreen> {
       );
       final response = await http.get(url);
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && mounted) {
+        final List<dynamic> lista = json.decode(response.body);
+        // Aseguramos orden alfabético
+        lista.sort(
+          (a, b) => a['nombre'].toString().toLowerCase().compareTo(
+            b['nombre'].toString().toLowerCase(),
+          ),
+        );
         setState(() {
-          rubros = json.decode(response.body);
+          rubros = lista;
           isLoading = false;
         });
       }
     } catch (e) {
       debugPrint('Error: $e');
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -53,14 +60,12 @@ class _RubrosScreenState extends State<RubrosScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Theme.of(context)
-          .scaffoldBackgroundColor, // Se adapta al tema
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          widget.categoriaNombre,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          '${widget.categoriaNombre} (${rubros.length})',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
         ),
-        // Colores controlados por main.dart
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
@@ -96,8 +101,10 @@ class _RubrosScreenState extends State<RubrosScreen> {
               itemCount: rubros.length,
               itemBuilder: (context, index) {
                 final rubro = rubros[index];
+                final int cantProf = rubro['cantidad_profesionales'] ?? 0;
+
                 return Card(
-                  color: Theme.of(context).cardColor, // Se adapta al tema
+                  color: Theme.of(context).cardColor,
                   elevation: 1,
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(
@@ -124,10 +131,10 @@ class _RubrosScreenState extends State<RubrosScreen> {
                       ),
                     ),
                     title: Text(
-                      rubro['nombre'],
+                      '${rubro['nombre']} ($cantProf)',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 15.5,
                         color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
@@ -141,7 +148,7 @@ class _RubrosScreenState extends State<RubrosScreen> {
                         MaterialPageRoute(
                           builder: (context) => ResultadosScreen(
                             rubroId: rubro['id'],
-                            rubroNombre: rubro['nombre'],
+                            rubroNombre: '${rubro['nombre']} ($cantProf)',
                           ),
                         ),
                       );

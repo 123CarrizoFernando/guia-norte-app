@@ -5,6 +5,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -30,6 +32,8 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   List<dynamic> profesionalesSimilares = [];
   bool isLoading = true;
   bool isFavorite = false;
+  bool isSubscribed = false;
+  int totalSuscriptores = 0;
 
   final _nombreAutorController = TextEditingController();
   final _comentarioController = TextEditingController();
@@ -39,18 +43,18 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   @override
   void initState() {
     super.initState();
+    totalSuscriptores = widget.perfil['total_suscriptores'] ?? 0;
     fetchResenas();
     fetchGaleria();
     verificarSiEsFavorito();
+    verificarSiEstaSuscrito();
     registrarVisita();
 
-    // Si hay un usuario logueado en Firebase, pre-cargamos su nombre para facilitarle la reseña
     final user = FirebaseAuth.instance.currentUser;
     if (user != null && user.displayName != null) {
       _nombreAutorController.text = user.displayName!;
     }
 
-    // Si NO es Premium, buscamos a la competencia
     if (widget.perfil['plan_id'] != 3) {
       _cargarCompetencia();
     }
@@ -61,6 +65,87 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     _nombreAutorController.dispose();
     _comentarioController.dispose();
     super.dispose();
+  }
+
+  String _obtenerMiniaturaCloudinary(String url, String? tipo) {
+    if (tipo == 'video' && url.contains('/video/upload/')) {
+      return url.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '.jpg');
+    }
+    return url;
+  }
+
+  // ==========================================
+  // LÓGICA DE SUSCRIPCIÓN AL NEGOCIO PREMIUM
+  // ==========================================
+  Future<void> verificarSiEstaSuscrito() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> subs =
+        prefs.getStringList('suscripciones_negocios') ?? [];
+    if (mounted) {
+      setState(() {
+        isSubscribed = subs.contains(widget.perfil['id'].toString());
+      });
+    }
+  }
+
+  Future<void> alternarSuscripcion() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> subs =
+        prefs.getStringList('suscripciones_negocios') ?? [];
+    final String idStr = widget.perfil['id'].toString();
+    final bool nuevaSuscripcion = !isSubscribed;
+
+    if (nuevaSuscripcion) {
+      subs.add(idStr);
+      if (!kIsWeb) {
+        try {
+          await FirebaseMessaging.instance.subscribeToTopic('negocio_$idStr');
+        } catch (_) {}
+      }
+    } else {
+      subs.remove(idStr);
+      if (!kIsWeb) {
+        try {
+          await FirebaseMessaging.instance.unsubscribeFromTopic(
+            'negocio_$idStr',
+          );
+        } catch (_) {}
+      }
+    }
+    await prefs.setStringList('suscripciones_negocios', subs);
+
+    try {
+      final res = await http.post(
+        Uri.parse(
+          'https://guia-norte-backend.onrender.com/api/perfiles/$idStr/suscripcion',
+        ),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'accion': nuevaSuscripcion ? 'suscribir' : 'desuscribir',
+        }),
+      );
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        totalSuscriptores = data['total_suscriptores'] ?? totalSuscriptores;
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        isSubscribed = nuevaSuscripcion;
+        widget.perfil['total_suscriptores'] = totalSuscriptores;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isSubscribed
+                ? '🔔 ¡Te suscribiste! Recibirás alertas cuando publique nuevos artículos o novedades.'
+                : 'Suscripción desactivada.',
+          ),
+          backgroundColor: isSubscribed ? Colors.amber.shade800 : Colors.grey,
+        ),
+      );
+    }
   }
 
   // ==========================================
@@ -91,9 +176,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     }
   }
 
-  // ==========================================
-  // ABRIR REDES SOCIALES
-  // ==========================================
   Future<void> _abrirRedSocial(String urlString) async {
     final Uri url = Uri.parse(urlString);
     try {
@@ -103,9 +185,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     }
   }
 
-  // ==========================================
-  // LÓGICA DE ESTADÍSTICAS
-  // ==========================================
   Future<void> registrarVisita() async {
     try {
       final url = Uri.parse(
@@ -156,9 +235,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     }
   }
 
-  // ==========================================
-  // LÓGICA DE HORARIOS
-  // ==========================================
   bool _estaAbierto() {
     final String apertura = widget.perfil['hora_apertura'] ?? '08:00';
     final String cierre = widget.perfil['hora_cierre'] ?? '18:00';
@@ -300,9 +376,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     }
   }
 
-  // ==========================================
-  // ENVIAR RESEÑA SIN NECESIDAD DE LOGIN
-  // ==========================================
   Future<void> enviarResena(StateSetter setModalState) async {
     if (_comentarioController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -598,13 +671,85 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
+
+                    // ==========================================
+                    // CONTADOR DE SUSCRIPTORES Y BOTÓN SUSCRIBIRME (PREMIUM)
+                    // ==========================================
+                    if (esPremium) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 10,
+                        runSpacing: 8,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.people_alt,
+                                  size: 16,
+                                  color: Colors.amber,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '$totalSuscriptores suscriptores',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: isDark
+                                        ? Colors.amber
+                                        : Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: alternarSuscripcion,
+                            icon: Icon(
+                              isSubscribed
+                                  ? Icons.notifications_active
+                                  : Icons.notifications_none,
+                              size: 18,
+                            ),
+                            label: Text(
+                              isSubscribed ? 'Suscrito' : 'Suscribirme',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isSubscribed
+                                  ? Colors.green
+                                  : Colors.amber,
+                              foregroundColor: isSubscribed
+                                  ? Colors.white
+                                  : Colors.black,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+
                     const SizedBox(height: 24),
 
                     // ==========================================
                     // SECCIÓN: SOBRE NOSOTROS (Descripción)
                     // ==========================================
-                    if (planId > 1 &&
-                        widget.perfil['descripcion'] != null &&
+                    if (widget.perfil['descripcion'] != null &&
                         widget.perfil['descripcion']
                             .toString()
                             .trim()
@@ -638,7 +783,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       const SizedBox(height: 24),
                     ],
 
-                    // Reseñas y Puntuación
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -656,7 +800,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // INDICADOR ABIERTO/CERRADO
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -696,9 +839,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // ==========================================
-                    // SECCIÓN DE CONTACTO SEGÚN EL PLAN
-                    // ==========================================
                     if (planId > 1) ...[
                       SizedBox(
                         width: double.infinity,
@@ -770,7 +910,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                     ],
                     const SizedBox(height: 16),
 
-                    // Botones de Mapas y Compartir
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -862,8 +1001,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
-
-                      // BOTÓN DESTACADO PARA SU PÁGINA WEB / TIENDA ONLINE
                       if (widget.perfil['sitio_web'] != null &&
                           widget.perfil['sitio_web']
                               .toString()
@@ -905,7 +1042,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                         ),
                         const SizedBox(height: 12),
                       ],
-
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -942,13 +1078,13 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
               const SizedBox(height: 16),
 
               // ==========================================
-              // SECCIÓN DE GALERÍA (SOLO VISIBLE SI PLAN > 1)
+              // SECCIÓN DE GALERÍA (FOTOS Y VIDEOS)
               // ==========================================
-              if (planId > 1 && galeria.isNotEmpty) ...[
+              if (galeria.isNotEmpty) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Text(
-                    'Trabajos Realizados',
+                    'Portafolio y Trabajos (${galeria.length})',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -958,34 +1094,63 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
-                  height: 150,
+                  height: 155,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     itemCount: galeria.length,
                     itemBuilder: (context, index) {
+                      final item = galeria[index];
+                      final bool esVideo = item['tipo'] == 'video';
+                      final String thumbUrl = _obtenerMiniaturaCloudinary(
+                        item['imagen_url'],
+                        item['tipo'],
+                      );
+
                       return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => VisorImagenesScreen(
-                                galeria: galeria,
-                                indexInicial: index,
+                        onTap: () async {
+                          if (esVideo) {
+                            await launchUrl(
+                              Uri.parse(item['imagen_url']),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => VisorImagenesScreen(
+                                  galeria: galeria,
+                                  indexInicial: index,
+                                ),
                               ),
-                            ),
-                          );
+                            );
+                          }
                         },
                         child: Container(
                           margin: const EdgeInsets.only(right: 12),
-                          width: 150,
+                          width: 155,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
                             image: DecorationImage(
-                              image: NetworkImage(galeria[index]['imagen_url']),
+                              image: NetworkImage(thumbUrl),
                               fit: BoxFit.cover,
                             ),
                           ),
+                          child: esVideo
+                              ? Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black38,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.play_circle_fill,
+                                      color: Colors.white,
+                                      size: 46,
+                                    ),
+                                  ),
+                                )
+                              : null,
                         ),
                       );
                     },
@@ -1122,9 +1287,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                     ),
               const SizedBox(height: 30),
 
-              // ==========================================
-              // SECCIÓN "OTROS PROFESIONALES SIMILARES"
-              // ==========================================
               if (planId != 3 && profesionalesSimilares.isNotEmpty) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
