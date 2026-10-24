@@ -26,6 +26,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   late TextEditingController _direccionController;
   late TextEditingController _instagramController;
   late TextEditingController _facebookController;
+  late TextEditingController _sitioWebController;
 
   // NUEVO: Listas y valores para cambiar Categoría, Rubro y Servicio
   List<dynamic> _categorias = [];
@@ -59,6 +60,10 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     );
     _facebookController = TextEditingController(
       text: widget.perfilData['facebook'] ?? '',
+    );
+
+    _sitioWebController = TextEditingController(
+      text: widget.perfilData['sitio_web'] ?? '',
     );
 
     _logoUrlExistente = widget.perfilData['logo_url'];
@@ -164,6 +169,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     _direccionController.dispose();
     _instagramController.dispose();
     _facebookController.dispose();
+    _sitioWebController.dispose();
     super.dispose();
   }
 
@@ -277,6 +283,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
           'facebook': _facebookController.text.trim(),
           'logo_url': urlFinalLogo,
           'servicio_id': _servicioSeleccionado,
+          'sitio_web': _sitioWebController.text.trim(),
         }),
       );
 
@@ -560,6 +567,20 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                 ),
               ),
               const SizedBox(height: 32),
+
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _sitioWebController,
+                keyboardType: TextInputType.url,
+                decoration: InputDecoration(
+                  labelText: 'Página Web o Catálogo Online (Beneficio Premium)',
+                  hintText: 'Ej: https://mitienda.com.ar',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  prefixIcon: const Icon(Icons.language, color: Colors.teal),
+                ),
+              ),
 
               SizedBox(
                 width: double.infinity,

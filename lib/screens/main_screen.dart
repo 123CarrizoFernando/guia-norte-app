@@ -11,6 +11,7 @@ import 'home_screen.dart';
 import 'login_screen.dart';
 import 'dashboard_screen.dart';
 import 'perfil_detalle_screen.dart';
+import 'soporte_notificaciones_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
@@ -191,6 +192,7 @@ class _MainScreenState extends State<MainScreen> {
       profesionalId != null
           ? DashboardScreen(usuarioId: profesionalId!)
           : const LoginScreen(),
+      const SoporteNotificacionesScreen(), // <-- NUEVA PESTAÑA 4
     ];
 
     return Scaffold(
@@ -220,6 +222,11 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),
             label: 'Mi Perfil',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.help_outline),
+            activeIcon: Icon(Icons.support_agent),
+            label: 'Soporte',
           ),
         ],
       ),

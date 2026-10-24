@@ -833,10 +833,15 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                     ),
 
                     // ==========================================
-                    // REDES SOCIALES (Solo Premium)
+                    // REDES SOCIALES Y PÁGINA WEB (Solo Premium)
                     // ==========================================
                     if (planId == 3 &&
-                        ((widget.perfil['instagram'] != null &&
+                        ((widget.perfil['sitio_web'] != null &&
+                                widget.perfil['sitio_web']
+                                    .toString()
+                                    .trim()
+                                    .isNotEmpty) ||
+                            (widget.perfil['instagram'] != null &&
                                 widget.perfil['instagram']
                                     .toString()
                                     .isNotEmpty) ||
@@ -848,7 +853,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                       const Divider(color: Colors.grey),
                       const SizedBox(height: 8),
                       Text(
-                        'Nuestras Redes',
+                        'Web Oficial y Redes',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -857,6 +862,50 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
+
+                      // BOTÓN DESTACADO PARA SU PÁGINA WEB / TIENDA ONLINE
+                      if (widget.perfil['sitio_web'] != null &&
+                          widget.perfil['sitio_web']
+                              .toString()
+                              .trim()
+                              .isNotEmpty) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          height: 46,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              String rawUrl = widget.perfil['sitio_web']
+                                  .toString()
+                                  .trim();
+                              if (!rawUrl.startsWith('http://') &&
+                                  !rawUrl.startsWith('https://')) {
+                                rawUrl = 'https://$rawUrl';
+                              }
+                              _abrirRedSocial(rawUrl);
+                            },
+                            icon: const Icon(
+                              Icons.language,
+                              color: Colors.white,
+                            ),
+                            label: const Text(
+                              'Visitar Página Web Oficial',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0077B6),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

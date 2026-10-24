@@ -9,6 +9,7 @@ import 'rubros_screen.dart';
 import 'resultados_busqueda_screen.dart';
 import 'perfil_detalle_screen.dart';
 import 'admin_dashboard_screen.dart';
+import 'soporte_notificaciones_screen.dart';
 import '../main.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -36,7 +37,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // Agrupamos la carga para el Pull-to-Refresh
   Future<void> _cargarDatos() async {
     await Future.wait([fetchCategorias(), fetchDestacados()]);
   }
@@ -48,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       final response = await http.get(url);
 
-      if (!mounted) return; // Evita el error setState() called after dispose()
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         setState(() {
@@ -70,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Uri.parse('https://guia-norte-backend.onrender.com/api/destacados'),
       );
 
-      if (!mounted) return; // Evita el error setState() called after dispose()
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         final List<dynamic> perfilesTotales = json.decode(response.body);
@@ -124,11 +124,26 @@ class _HomeScreenState extends State<HomeScreen> {
         n.contains('profesional')) {
       return Icons.computer;
     }
-    if (n.contains('hogar') || n.contains('limpieza')) {
-      return Icons.cleaning_services;
+    if (n.contains('hogar') || n.contains('limpieza') || n.contains('oficio')) {
+      return Icons.handyman;
     }
-    if (n.contains('legal') || n.contains('abogado')) return Icons.gavel;
-    if (n.contains('ropa') || n.contains('indumentaria')) {
+    if (n.contains('emprendimiento') ||
+        n.contains('feria') ||
+        n.contains('catalogo')) {
+      return Icons.storefront;
+    }
+    if (n.contains('agro') || n.contains('campo')) return Icons.agriculture;
+    if (n.contains('mascota') || n.contains('veterinaria')) return Icons.pets;
+    if (n.contains('deporte') || n.contains('fitness')) {
+      return Icons.fitness_center;
+    }
+    if (n.contains('transporte') || n.contains('envio')) {
+      return Icons.local_shipping;
+    }
+    if (n.contains('evento') || n.contains('fiesta')) return Icons.celebration;
+    if (n.contains('ropa') ||
+        n.contains('indumentaria') ||
+        n.contains('moda')) {
       return Icons.checkroom;
     }
     return Icons.category;
@@ -147,14 +162,18 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.only(top: 50, bottom: 20, left: 20),
-              color: Theme.of(context).appBarTheme.backgroundColor,
+              color: const Color(0xFF00B4D8),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
                     radius: 30,
-                    backgroundColor: Color(0xFF00B4D8),
-                    child: Icon(Icons.person, color: Colors.white, size: 35),
+                    backgroundColor: Colors.white,
+                    child: Icon(
+                      Icons.explore,
+                      color: Color(0xFF00B4D8),
+                      size: 35,
+                    ),
                   ),
                   SizedBox(height: 12),
                   Text('Bienvenido a', style: TextStyle(color: Colors.white70)),
@@ -175,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Theme.of(context).primaryColor,
               ),
               title: Text(
-                isDark ? 'Modo Claro' : 'Modo Oscuro',
+                isDark ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -184,6 +203,28 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () {
                 Navigator.pop(context);
                 themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.notifications_active_outlined,
+                color: Theme.of(context).primaryColor,
+              ),
+              title: Text(
+                'Notificaciones y Soporte',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SoporteNotificacionesScreen(),
+                  ),
+                );
               },
             ),
             Divider(color: isDark ? Colors.white24 : Colors.black12),
@@ -300,15 +341,15 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                height: 150,
+                height: 145,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: isDark
-                        ? [Colors.black, Colors.black87]
+                        ? [const Color(0xFF0F2027), const Color(0xFF203A43)]
                         : [Theme.of(context).primaryColor, Colors.blueAccent],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
                 ),
                 child: Stack(
@@ -319,7 +360,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Icon(
                         Icons.campaign,
                         size: 150,
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: Colors.white.withValues(alpha: 0.08),
                       ),
                     ),
                     Padding(
@@ -329,17 +370,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Text(
-                            'LOS MEJORES\nPROFESIONALES',
+                            'COMERCIOS, OFICIOS Y\nEMPRENDIMIENTOS',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 24,
+                              fontSize: 22,
                               fontWeight: FontWeight.bold,
                               height: 1.2,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Encuentra confianza y calidad.',
+                            'Todo Tartagal conectado en un solo lugar.',
                             style: TextStyle(
                               color: isDark
                                   ? const Color(0xFF00B4D8)
@@ -353,7 +394,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+
               if (!isLoading) ...[
                 SizedBox(
                   height: 110,
@@ -426,18 +468,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
               const SizedBox(height: 16),
+
+              // ==========================================
+              // SECCIÓN VITRINA VIP: DESTACADOS PREMIUM CON IMAGEN DE PORTADA
+              // ==========================================
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text(
-                  'Destacados en Tartagal',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.workspace_premium,
+                      color: Colors.amber,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Destacados VIP en Tartagal',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 12),
+
               destacados.isEmpty
                   ? Padding(
                       padding: const EdgeInsets.all(20.0),
@@ -460,7 +517,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       itemCount: destacados.length,
                       itemBuilder: (context, index) {
                         final prof = destacados[index];
-                        final bool isPremium = prof['plan_id'] == 3;
+                        final String? imagenPortada =
+                            prof['portada_url'] ?? prof['logo_url'];
+                        final String? rubroNombre = prof['rubro_nombre'];
+
                         return GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -474,141 +534,230 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           },
                           child: Container(
-                            margin: const EdgeInsets.only(bottom: 16),
+                            margin: const EdgeInsets.only(bottom: 20),
                             decoration: BoxDecoration(
                               color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(18),
                               border: Border.all(
-                                color: isPremium
-                                    ? const Color(0xFF00B4D8)
-                                          .withValues(alpha: 0.5)
-                                    : (isDark
-                                          ? Colors.white10
-                                          : Colors.black12),
-                                width: 1.5,
+                                color: Colors.amber.shade600,
+                                width: 1.8,
                               ),
                               boxShadow: [
                                 BoxShadow(
                                   color: isDark
-                                      ? Colors.black38
-                                      : Colors.black12,
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
+                                      ? Colors.black54
+                                      : Colors.amber.withValues(alpha: 0.15),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 5),
                                 ),
                               ],
                             ),
-                            child: Stack(
+                            clipBehavior: Clip.antiAlias,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Row(
+                                // BANNER SUPERIOR DE PORTADA (135px de alto)
+                                SizedBox(
+                                  height: 135,
+                                  width: double.infinity,
+                                  child: Stack(
+                                    fit: StackFit.expand,
                                     children: [
-                                      Container(
-                                        width: 60,
-                                        height: 60,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: isDark
-                                              ? const Color(0xFF2A3143)
-                                              : Colors.grey[200],
-                                          image: prof['logo_url'] != null
-                                              ? DecorationImage(
-                                                  image: NetworkImage(
-                                                    prof['logo_url'],
-                                                  ),
-                                                  fit: BoxFit.cover,
-                                                )
-                                              : null,
+                                      if (imagenPortada != null &&
+                                          imagenPortada.isNotEmpty)
+                                        Image.network(
+                                          imagenPortada,
+                                          fit: BoxFit.cover,
+                                        )
+                                      else
+                                        Container(
+                                          decoration: const BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                Color(0xFF0077B6),
+                                                Color(0xFF00B4D8),
+                                              ],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.storefront,
+                                            size: 56,
+                                            color: Colors.white38,
+                                          ),
                                         ),
-                                        child: prof['logo_url'] == null
-                                            ? Icon(
-                                                Icons.store,
-                                                color: Theme.of(context)
-                                                    .primaryColor,
-                                                size: 30,
-                                              )
-                                            : null,
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    prof['nombre_comercial'] ??
-                                                        'Sin nombre',
-                                                    style: TextStyle(
-                                                      fontSize: 18,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: Theme.of(context)
-                                                          .textTheme
-                                                          .bodyLarge
-                                                          ?.color,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Icon(
-                                                  Icons.verified,
-                                                  color: Theme.of(context)
-                                                      .primaryColor,
-                                                  size: 20,
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              prof['descripcion'] != null &&
-                                                      prof['descripcion']
-                                                          .toString()
-                                                          .isNotEmpty
-                                                  ? prof['descripcion']
-                                                  : 'Profesional verificado en Tartagal',
-                                              style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .textTheme
-                                                    .bodyMedium
-                                                    ?.color,
-                                                fontSize: 13,
-                                                height: 1.4,
+
+                                      // Sombreado oscuro suave abajo para resaltar textos
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.black.withValues(
+                                                alpha: 0.1,
                                               ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
+                                              Colors.black.withValues(
+                                                alpha: 0.7,
+                                              ),
+                                            ],
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                          ),
+                                        ),
+                                      ),
+
+                                      // Etiqueta del Rubro arriba a la izquierda
+                                      if (rubroNombre != null &&
+                                          rubroNombre.isNotEmpty)
+                                        Positioned(
+                                          top: 10,
+                                          left: 10,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 4,
                                             ),
-                                            const SizedBox(height: 10),
-                                            Row(
-                                              children: [
-                                                const Icon(
-                                                  Icons.star,
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.65,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                            ),
+                                            child: Text(
+                                              rubroNombre,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+
+                                      // Insignia Dorada DESTACADO VIP arriba a la derecha
+                                      Positioned(
+                                        top: 10,
+                                        right: 10,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 5,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber,
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.star,
+                                                color: Colors.black,
+                                                size: 14,
+                                              ),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'DESTACADO VIP',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.black,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+
+                                      // Logo circular y Nombre sobre el pie de la portada
+                                      Positioned(
+                                        bottom: 10,
+                                        left: 12,
+                                        right: 12,
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 52,
+                                              height: 52,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
                                                   color: Colors.amber,
-                                                  size: 14,
+                                                  width: 2,
                                                 ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  '${prof['calificacion_promedio'] ?? '5.0'}',
-                                                  style: const TextStyle(
-                                                    color: Colors.amber,
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                                image: prof['logo_url'] != null
+                                                    ? DecorationImage(
+                                                        image: NetworkImage(
+                                                          prof['logo_url'],
+                                                        ),
+                                                        fit: BoxFit.cover,
+                                                      )
+                                                    : null,
+                                              ),
+                                              child: prof['logo_url'] == null
+                                                  ? const Icon(
+                                                      Icons.store,
+                                                      color: Color(0xFF00B4D8),
+                                                    )
+                                                  : null,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Flexible(
+                                                        child: Text(
+                                                          prof['nombre_comercial'] ??
+                                                              'Sin nombre',
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 18,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: Colors
+                                                                    .white,
+                                                              ),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      const Icon(
+                                                        Icons.verified,
+                                                        color: Colors.amber,
+                                                        size: 18,
+                                                      ),
+                                                    ],
                                                   ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  '• ${prof['total_resenas'] ?? '0'} Trabajos',
-                                                  style: const TextStyle(
-                                                    color: Colors.grey,
-                                                    fontSize: 11,
+                                                  Row(
+                                                    children: [
+                                                      const Icon(
+                                                        Icons.star,
+                                                        color: Colors.amber,
+                                                        size: 14,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        '${prof['calificacion_promedio'] ?? '5.0'} (${prof['total_resenas'] ?? '0'} opiniones)',
+                                                        style: const TextStyle(
+                                                          color: Colors.white70,
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
-                                                ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -616,43 +765,57 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ],
                                   ),
                                 ),
-                                if (isPremium)
-                                  Positioned(
-                                    top: 0,
-                                    right: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context).primaryColor,
-                                        borderRadius: const BorderRadius.only(
-                                          bottomLeft: Radius.circular(12),
-                                          topRight: Radius.circular(16),
+
+                                // CUERPO INFERIOR DE LA TARJETA VIP
+                                Padding(
+                                  padding: const EdgeInsets.all(14.0),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          prof['descripcion'] != null &&
+                                                  prof['descripcion']
+                                                      .toString()
+                                                      .trim()
+                                                      .isNotEmpty
+                                              ? prof['descripcion']
+                                              : 'Comercio Destacado Oficial en Tartagal',
+                                          style: TextStyle(
+                                            color: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.color,
+                                            fontSize: 13,
+                                            height: 1.3,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.bolt,
+                                      const SizedBox(width: 12),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).primaryColor,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'Ver Perfil',
+                                          style: TextStyle(
                                             color: Colors.white,
-                                            size: 14,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
                                           ),
-                                          SizedBox(width: 4),
-                                          Text(
-                                            'Destacado',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ],
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
+                                ),
                               ],
                             ),
                           ),

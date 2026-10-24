@@ -27,7 +27,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool isLoading = true;
   bool isUploading = false;
 
-  // CONFIGURA AQUÍ TU ALIAS PARA TRANSFERENCIAS:
   static const String aliasPago = 'ajeno.buzo.esmere.mp';
 
   @override
@@ -66,10 +65,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _mostrarDialogoPagoPlan(
     int planId,
     String nombrePlan,
-    String precio,
+    String precioMensual,
+    String precioAnual,
     String linkMp,
   ) async {
-    String metodoElegido = 'Mercado Pago (Link)';
+    String metodoElegido = 'Transferencia Bancaria / Alias';
+    String periodoElegido = 'mensual';
     final comprobanteCtrl = TextEditingController();
 
     await showModalBottomSheet(
@@ -81,6 +82,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
+            final precioMostrar = periodoElegido == 'anual'
+                ? precioAnual
+                : precioMensual;
+
             return Padding(
               padding: EdgeInsets.only(
                 left: 20,
@@ -94,7 +99,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Activar $nombrePlan ($precio/mes)',
+                      'Activar $nombrePlan ($precioMostrar)',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -102,8 +107,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      '1. Elige cómo quieres abonar y realiza el pago.\n2. Ingresa debajo el número de comprobante o titular.\n3. Apenas verifiquemos el depósito, daremos de alta tu plan.',
-                      style: TextStyle(fontSize: 13),
+                      '• El pago mensual cubre el mes actual y se renueva del 1 al 10 del mes siguiente.\n• Con el pago anual ahorras 2 meses y te olvidas por 1 año.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ChoiceChip(
+                            label: Text('Mensual ($precioMensual)'),
+                            selected: periodoElegido == 'mensual',
+                            onSelected: (_) =>
+                                setModalState(() => periodoElegido = 'mensual'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ChoiceChip(
+                            label: Text('🔥 Anual ($precioAnual)'),
+                            selected: periodoElegido == 'anual',
+                            onSelected: (_) =>
+                                setModalState(() => periodoElegido = 'anual'),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
@@ -116,12 +143,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       items: const [
                         DropdownMenuItem(
-                          value: 'Mercado Pago (Link)',
-                          child: Text('Pagar con Mercado Pago (Link)'),
-                        ),
-                        DropdownMenuItem(
                           value: 'Transferencia Bancaria / Alias',
                           child: Text('Transferencia / CBU / Alias'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Mercado Pago (Link)',
+                          child: Text('Pagar con Mercado Pago (Link)'),
                         ),
                         DropdownMenuItem(
                           value: 'Efectivo / Rapipago / Presencial',
@@ -138,7 +165,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.open_in_new),
-                          label: Text('Abrir Link de Pago ($precio)'),
+                          label: Text('Abrir Link de Pago ($precioMostrar)'),
                           onPressed: () async {
                             await launchUrl(
                               Uri.parse(linkMp),
@@ -235,6 +262,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             headers: {'Content-Type': 'application/json'},
                             body: json.encode({
                               'plan_solicitado_id': planId,
+                              'periodo_pago': periodoElegido,
                               'metodo_pago': metodoElegido,
                               'comprobante_info': comprobanteCtrl.text.trim(),
                             }),
@@ -263,6 +291,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _subirFotoGaleria() async {
+    final int planActual = perfilData?['plan_id'] ?? 1;
+    final int limiteFotos = planActual == 3 ? 10 : (planActual == 2 ? 3 : 0);
+
+    if (planActual == 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Activa el Plan Medio (hasta 3 fotos) o Plan Premium (hasta 10 fotos) para habilitar tu galería.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (miGaleria.length >= limiteFotos) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            planActual == 3
+                ? 'Alcanzaste el límite máximo de 10 fotos del Plan Premium.'
+                : 'Tu Plan Medio permite hasta 3 fotos. ¡Pásate al Plan Premium para subir hasta 10 fotos!',
+          ),
+          backgroundColor: Colors.deepOrange,
+        ),
+      );
+      return;
+    }
+
     final picker = ImagePicker();
     final XFile? imagen = await picker.pickImage(
       source: ImageSource.gallery,
@@ -290,13 +347,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final jsonMap = json.decode(utf8.decode(responseData));
         final secureUrl = jsonMap['secure_url'];
 
-        await http.post(
+        final respBackend = await http.post(
           Uri.parse(
             'https://guia-norte-backend.onrender.com/api/perfiles/${perfilData!['id']}/galeria',
           ),
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'imagen_url': secureUrl}),
         );
+
+        if (respBackend.statusCode == 403 && mounted) {
+          final err = json.decode(respBackend.body);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(err['error'] ?? 'Límite de fotos alcanzado'),
+              backgroundColor: Colors.deepOrange,
+            ),
+          );
+        }
         cargarPerfilYGaleria();
       }
     } catch (e) {
@@ -323,6 +390,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final int planActual = perfilData?['plan_id'] ?? 1;
+    final int limiteFotos = planActual == 3 ? 10 : (planActual == 2 ? 3 : 0);
+    final int diaDelMes = DateTime.now().day;
+    final bool mostrarAlertaRenovacion = planActual > 1 && diaDelMes <= 10;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -373,6 +444,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // ALERTA DE VENCIMIENTO DEL DÍA 1 AL 10 DE CADA MES
+                    if (mostrarAlertaRenovacion) ...[
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.amber.shade800),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.notifications_active,
+                              color: Colors.deepOrange,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Recordatorio: Tienes hasta el día 10 de este mes para abonar la renovación de tu plan (${perfilData!['fecha_vencimiento_plan'] != null ? "Vence: ${perfilData!['fecha_vencimiento_plan'].toString().split('T')[0]}" : "Del 1 al 10"}).',
+                                style: const TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     Text(
                       'Rendimiento de mi Negocio',
                       style: TextStyle(
@@ -607,7 +710,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 color: Theme.of(context).primaryColor,
                               ),
                               label: Text(
-                                'Editar mis datos y rubro',
+                                'Editar mis datos, web y rubro',
                                 style: TextStyle(
                                   color: Theme.of(context).primaryColor,
                                 ),
@@ -628,13 +731,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 24),
 
                     // ==========================================
-                    // SECCIÓN: MI PORTAFOLIO (Usa _subirFotoGaleria)
+                    // SECCIÓN: MI PORTAFOLIO (Límite 3 Medio / 10 Premium)
                     // ==========================================
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Mi Portafolio',
+                          'Mi Portafolio (${miGaleria.length}/$limiteFotos fotos)',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -679,7 +782,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             child: Center(
                               child: Text(
-                                'Aún no has subido fotos de tus trabajos.',
+                                planActual == 1
+                                    ? 'Pásate al Plan Medio (3 fotos) o Premium (10 fotos) para mostrar tus trabajos.'
+                                    : 'Aún no has subido fotos. La primera foto que subas será tu portada destacada.',
+                                textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: Theme.of(context)
                                       .textTheme
@@ -748,15 +854,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               const Text('Plan Actual'),
                               Chip(
                                 label: Text(
-                                  perfilData!['plan_id'] == 3
-                                      ? 'PREMIUM'
-                                      : (perfilData!['plan_id'] == 2
-                                            ? 'MEDIO'
+                                  planActual == 3
+                                      ? 'PREMIUM (10 Fotos + Web)'
+                                      : (planActual == 2
+                                            ? 'MEDIO (3 Fotos)'
                                             : 'BÁSICO'),
                                 ),
                               ),
                             ],
                           ),
+                          if (perfilData!['fecha_vencimiento_plan'] != null &&
+                              planActual > 1)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                '📅 Vencimiento actual: ${perfilData!['fecha_vencimiento_plan'].toString().split('T')[0]}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
                           if (perfilData!['estado_pago'] == 'pendiente') ...[
                             const SizedBox(height: 12),
                             Container(
@@ -784,15 +902,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ],
                           const SizedBox(height: 16),
-                          if (perfilData!['plan_id'] != 3) ...[
-                            if (perfilData!['plan_id'] == 1)
+                          if (planActual != 3) ...[
+                            if (planActual == 1)
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
                                   onPressed: () => _mostrarDialogoPagoPlan(
                                     2,
                                     'Plan Medio',
-                                    '\$5.000',
+                                    '\$5.000/mes',
+                                    '\$50.000/año',
                                     'https://mpago.la/1ygAvpA',
                                   ),
                                   icon: const Icon(Icons.arrow_upward),
@@ -812,7 +931,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 onPressed: () => _mostrarDialogoPagoPlan(
                                   3,
                                   'Plan Premium',
-                                  '\$20.000',
+                                  '\$20.000/mes',
+                                  '\$200.000/año',
                                   'https://mpago.la/2TWNwfq',
                                 ),
                                 icon: const Icon(Icons.star),
