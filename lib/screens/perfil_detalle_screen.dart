@@ -11,7 +11,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'reproductor_video_screen.dart';
-
 import 'visor_imagenes_screen.dart';
 
 class PerfilDetalleScreen extends StatefulWidget {
@@ -74,6 +73,118 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       return url.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '.jpg');
     }
     return url;
+  }
+
+  // ==========================================
+  // REPORTAR PERFIL INAPROPIADO AL ADMINISTRADOR
+  // ==========================================
+  Future<void> _mostrarDialogoReportar() async {
+    String motivoElegido = 'Contenido sexual / inapropiado (+18)';
+    final detalleCtrl = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.report_problem, color: Colors.redAccent),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Reportar Perfil',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Si este perfil publica contenido sexual, engañoso o ilegal, repórtalo para que el administrador lo revise y bloquee la cuenta.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: motivoElegido,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Contenido sexual / inapropiado (+18)',
+                          child: Text('Contenido sexual / inapropiado (+18)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Posible estafa o perfil falso',
+                          child: Text('Posible estafa o perfil falso'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Venta de artículos ilegales / prohibidos',
+                          child: Text('Venta de artículos ilegales'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Fotos ofensivas o spam',
+                          child: Text('Fotos ofensivas o spam'),
+                        ),
+                      ],
+                      onChanged: (v) =>
+                          setDialogState(() => motivoElegido = v!),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: detalleCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Detalle adicional (Opcional)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await http.post(
+                      Uri.parse(
+                        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/reportar',
+                      ),
+                      headers: {'Content-Type': 'application/json'},
+                      body: json.encode({
+                        'motivo': motivoElegido,
+                        'detalle': detalleCtrl.text.trim(),
+                      }),
+                    );
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Gracias. El reporte fue enviado al administrador para su revisión.',
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  },
+                  child: const Text('Enviar Reporte'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   // ==========================================
@@ -609,7 +720,13 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                   ? Colors.redAccent
                   : Theme.of(context).appBarTheme.iconTheme?.color,
             ),
+            tooltip: 'Guardar en Favoritos',
             onPressed: alternarFavorito,
+          ),
+          IconButton(
+            icon: const Icon(Icons.flag_outlined, color: Colors.orange),
+            tooltip: 'Reportar perfil inapropiado',
+            onPressed: _mostrarDialogoReportar,
           ),
         ],
       ),

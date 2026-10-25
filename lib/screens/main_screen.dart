@@ -12,6 +12,7 @@ import 'login_screen.dart';
 import 'dashboard_screen.dart';
 import 'perfil_detalle_screen.dart';
 import 'soporte_notificaciones_screen.dart';
+import 'terminos_condiciones_dialog.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
@@ -37,6 +38,11 @@ class _MainScreenState extends State<MainScreen> {
 
     _verificarSesion();
     _configurarNotificaciones();
+
+    // Mostrar Términos y Condiciones la primera vez que abre la app tras instalarla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      verificarYAceptarTerminos(context);
+    });
   }
 
   @override

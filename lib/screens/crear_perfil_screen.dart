@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dart:typed_data';
 
+import 'terminos_condiciones_dialog.dart';
 import 'dashboard_screen.dart';
 import 'main_screen.dart';
 
@@ -200,6 +201,13 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
       );
       return;
     }
+
+    // PEDIR ACEPTACIÓN DE TÉRMINOS Y CONDICIONES ANTES DE CREAR EL PERFIL COMERCIAL
+    final bool aceptoTerminos = await verificarYAceptarTerminos(
+      context,
+      forzarMostrar: true,
+    );
+    if (!aceptoTerminos) return;
 
     final bool pidePlanPago = _planSeleccionado > 1;
     if (pidePlanPago && _comprobanteController.text.trim().isEmpty) {
