@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
 import 'dart:convert';
-
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -36,6 +34,11 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   bool isSubscribed = false;
   int totalSuscriptores = 0;
 
+  // Likes y Dislikes
+  int totalLikes = 0;
+  int totalDislikes = 0;
+  String? miReaccion; // 'like', 'dislike' o null
+
   final _nombreAutorController = TextEditingController();
   final _comentarioController = TextEditingController();
   int _estrellasSeleccionadas = 5;
@@ -45,10 +48,14 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   void initState() {
     super.initState();
     totalSuscriptores = widget.perfil['total_suscriptores'] ?? 0;
+    totalLikes = widget.perfil['total_likes'] ?? 0;
+    totalDislikes = widget.perfil['total_dislikes'] ?? 0;
+
     fetchResenas();
     fetchGaleria();
     verificarSiEsFavorito();
     verificarSiEstaSuscrito();
+    cargarMiReaccionLocal();
     registrarVisita();
 
     final user = FirebaseAuth.instance.currentUser;
@@ -73,6 +80,61 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       return url.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '.jpg');
     }
     return url;
+  }
+
+  // ==========================================
+  // LÓGICA DE LIKES Y DISLIKES
+  // ==========================================
+  Future<void> cargarMiReaccionLocal() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String key = 'reaccion_perfil_${widget.perfil['id']}';
+    if (mounted) {
+      setState(() {
+        miReaccion = prefs.getString(key);
+      });
+    }
+  }
+
+  Future<void> _votarReaccion(String tipoClickeado) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String key = 'reaccion_perfil_${widget.perfil['id']}';
+    final String? reaccionAnterior = miReaccion;
+    final String nuevaReaccion =
+        (reaccionAnterior == tipoClickeado) ? 'ninguno' : tipoClickeado;
+
+    try {
+      final res = await http.post(
+        Uri.parse(
+          'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/reaccion',
+        ),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'tipo': nuevaReaccion,
+          'quitar_anterior': reaccionAnterior,
+        }),
+      );
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        if (nuevaReaccion == 'ninguno') {
+          await prefs.remove(key);
+        } else {
+          await prefs.setString(key, nuevaReaccion);
+        }
+
+        if (mounted) {
+          setState(() {
+            miReaccion = nuevaReaccion == 'ninguno' ? null : nuevaReaccion;
+            totalLikes = data['total_likes'] ?? totalLikes;
+            totalDislikes = data['total_dislikes'] ?? totalDislikes;
+            widget.perfil['total_likes'] = totalLikes;
+            widget.perfil['total_dislikes'] = totalDislikes;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error votando reacción: $e');
+    }
   }
 
   // ==========================================
@@ -105,7 +167,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      'Si este perfil publica contenido sexual, engañoso o ilegal, repórtalo para que el administrador lo revise y bloquee la cuenta.',
+                      'Si este perfil publica contenido inapropiado, engañoso o tuviste un problema grave, repórtalo para que administración lo revise.',
                       style: TextStyle(fontSize: 13),
                     ),
                     const SizedBox(height: 12),
@@ -120,6 +182,10 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                         DropdownMenuItem(
                           value: 'Posible estafa o perfil falso',
                           child: Text('Posible estafa o perfil falso'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Mala experiencia grave / Maltrato',
+                          child: Text('Mala experiencia grave / Maltrato'),
                         ),
                         DropdownMenuItem(
                           value: 'Venta de artículos ilegales / prohibidos',
@@ -261,9 +327,6 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     }
   }
 
-  // ==========================================
-  // CARGAR COMPETENCIA
-  // ==========================================
   Future<void> _cargarCompetencia() async {
     try {
       final nombreComercial = widget.perfil['nombre_comercial'];
@@ -635,7 +698,8 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                         color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                       decoration: InputDecoration(
-                        hintText: '¿Cómo fue tu experiencia con este comercio o profesional?',
+                        hintText:
+                            '¿Cómo fue tu experiencia con este comercio o profesional?',
                         hintStyle: TextStyle(
                           color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
@@ -704,6 +768,9 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     final int planId = widget.perfil['plan_id'] ?? 1;
     final bool esPremium = planId == 3;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final String? portadaUrl = widget.perfil['portada_url'];
+    final bool tienePortada =
+        portadaUrl != null && portadaUrl.toString().trim().isNotEmpty;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -745,267 +812,541 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // ==========================================
+              // CABECERA CON FOTO DE PORTADA PANORÁMICA Y LOGO SUPERPUESTO
+              // ==========================================
               Container(
                 color: Theme.of(context).cardColor,
-                padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
                     Stack(
-                      alignment: Alignment.bottomRight,
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.bottomCenter,
                       children: [
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: isDark
-                              ? const Color(0xFF2A3143)
-                              : Colors.blue[50],
-                          backgroundImage: widget.perfil['logo_url'] != null
-                              ? NetworkImage(widget.perfil['logo_url'])
-                              : null,
-                          child: widget.perfil['logo_url'] == null
-                              ? Icon(
-                                  Icons.store,
-                                  size: 40,
-                                  color: Theme.of(context).primaryColor,
-                                )
-                              : null,
-                        ),
-                        if (esPremium)
-                          Padding(
-                            padding: const EdgeInsets.all(4.0),
-                            child: Icon(
-                              Icons.verified,
-                              color: Theme.of(context).primaryColor,
-                              size: 28,
+                        // Banner de Portada (175px)
+                        Container(
+                          height: tienePortada ? 175 : 110,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0077B6), Color(0xFF00B4D8)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            image: tienePortada
+                                ? DecorationImage(
+                                    image: NetworkImage(portadaUrl),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.1),
+                                  Colors.black.withValues(alpha: 0.55),
+                                ],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
                             ),
                           ),
+                        ),
+
+                        // Logo Circular Superpuesto
+                        Positioned(
+                          bottom: -45,
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: esPremium
+                                        ? Colors.amber
+                                        : Theme.of(context).cardColor,
+                                    width: 4,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          Colors.black.withValues(alpha: 0.2),
+                                      blurRadius: 8,
+                                    ),
+                                  ],
+                                ),
+                                child: CircleAvatar(
+                                  radius: 48,
+                                  backgroundColor: isDark
+                                      ? const Color(0xFF2A3143)
+                                      : Colors.blue[50],
+                                  backgroundImage:
+                                      widget.perfil['logo_url'] != null
+                                          ? NetworkImage(
+                                              widget.perfil['logo_url'],
+                                            )
+                                          : null,
+                                  child: widget.perfil['logo_url'] == null
+                                      ? Icon(
+                                          Icons.store,
+                                          size: 40,
+                                          color: Theme.of(context).primaryColor,
+                                        )
+                                      : null,
+                                ),
+                              ),
+                              if (esPremium)
+                                Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  padding: const EdgeInsets.all(2),
+                                  child: Icon(
+                                    Icons.verified,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 26,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      widget.perfil['nombre_comercial'],
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    const SizedBox(height: 55),
 
-                    // ==========================================
-                    // CONTADOR DE SUSCRIPTORES Y BOTÓN SUSCRIBIRME (PREMIUM)
-                    // ==========================================
-                    if (esPremium) ...[
-                      const SizedBox(height: 12),
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 10,
-                        runSpacing: 8,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 8,
+                      ),
+                      child: Column(
                         children: [
+                          Text(
+                            widget.perfil['nombre_comercial'],
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  Theme.of(context).textTheme.bodyLarge?.color,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+
+                          // ==========================================
+                          // LIKES (👍) Y DISLIKES (👎) PARA VALORAR EXPERIENCIA RÁPIDA
+                          // ==========================================
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () => _votarReaccion('like'),
+                                icon: Icon(
+                                  miReaccion == 'like'
+                                      ? Icons.thumb_up_alt
+                                      : Icons.thumb_up_off_alt,
+                                  color: miReaccion == 'like'
+                                      ? Colors.green
+                                      : Colors.grey,
+                                  size: 20,
+                                ),
+                                label: Text(
+                                  'Me gusta ($totalLikes)',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: miReaccion == 'like'
+                                        ? Colors.green
+                                        : Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge
+                                            ?.color,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: miReaccion == 'like'
+                                        ? Colors.green
+                                        : Colors.grey.shade400,
+                                    width: miReaccion == 'like' ? 2 : 1,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              OutlinedButton.icon(
+                                onPressed: () => _votarReaccion('dislike'),
+                                icon: Icon(
+                                  miReaccion == 'dislike'
+                                      ? Icons.thumb_down_alt
+                                      : Icons.thumb_down_off_alt,
+                                  color: miReaccion == 'dislike'
+                                      ? Colors.redAccent
+                                      : Colors.grey,
+                                  size: 20,
+                                ),
+                                label: Text(
+                                  'No me gusta ($totalDislikes)',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: miReaccion == 'dislike'
+                                        ? Colors.redAccent
+                                        : Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge
+                                            ?.color,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: miReaccion == 'dislike'
+                                        ? Colors.redAccent
+                                        : Colors.grey.shade400,
+                                    width: miReaccion == 'dislike' ? 2 : 1,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // ==========================================
+                          // CONTADOR DE SUSCRIPTORES Y BOTÓN SUSCRIBIRME (PREMIUM)
+                          // ==========================================
+                          if (esPremium) ...[
+                            const SizedBox(height: 12),
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 10,
+                              runSpacing: 8,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.people_alt,
+                                        size: 16,
+                                        color: Colors.amber,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '$totalSuscriptores suscriptores',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: isDark
+                                              ? Colors.amber
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                ElevatedButton.icon(
+                                  onPressed: alternarSuscripcion,
+                                  icon: Icon(
+                                    isSubscribed
+                                        ? Icons.notifications_active
+                                        : Icons.notifications_none,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    isSubscribed ? 'Suscrito' : 'Suscribirme',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isSubscribed
+                                        ? Colors.green
+                                        : Colors.amber,
+                                    foregroundColor: isSubscribed
+                                        ? Colors.white
+                                        : Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+
+                          const SizedBox(height: 20),
+
+                          if (widget.perfil['descripcion'] != null &&
+                              widget.perfil['descripcion']
+                                  .toString()
+                                  .trim()
+                                  .isNotEmpty) ...[
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Sobre nosotros',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.color,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                widget.perfil['descripcion'],
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  height: 1.5,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                                size: 24,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${widget.perfil['calificacion_promedio'] ?? '0.0'} (${widget.perfil['total_resenas'] ?? '0'} opiniones)',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.color,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
+                              horizontal: 16,
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.amber.withValues(alpha: 0.15),
+                              color: abierto
+                                  ? (isDark
+                                        ? Colors.green.withValues(alpha: 0.2)
+                                        : Colors.green[50])
+                                  : (isDark
+                                        ? Colors.red.withValues(alpha: 0.2)
+                                        : Colors.red[50]),
                               borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: abierto ? Colors.green : Colors.red,
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
-                                  Icons.people_alt,
+                                Icon(
+                                  abierto ? Icons.check_circle : Icons.cancel,
+                                  color: abierto ? Colors.green : Colors.red,
                                   size: 16,
-                                  color: Colors.amber,
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 8),
                                 Text(
-                                  '$totalSuscriptores suscriptores',
+                                  abierto ? 'Abierto Ahora' : 'Cerrado',
                                   style: TextStyle(
+                                    color: abierto ? Colors.green : Colors.red,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                    color: isDark
-                                        ? Colors.amber
-                                        : Colors.black87,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          ElevatedButton.icon(
-                            onPressed: alternarSuscripcion,
-                            icon: Icon(
-                              isSubscribed
-                                  ? Icons.notifications_active
-                                  : Icons.notifications_none,
-                              size: 18,
-                            ),
-                            label: Text(
-                              isSubscribed ? 'Suscrito' : 'Suscribirme',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                          const SizedBox(height: 24),
+
+                          if (planId > 1) ...[
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: ElevatedButton.icon(
+                                onPressed: _contactarWhatsApp,
+                                icon: const Icon(
+                                  Icons.chat,
+                                  color: Colors.white,
+                                ),
+                                label: const Text(
+                                  'Contactar por WhatsApp',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF25D366),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
                               ),
                             ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isSubscribed
-                                  ? Colors.green
-                                  : Colors.amber,
-                              foregroundColor: isSubscribed
-                                  ? Colors.white
-                                  : Colors.black,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
+                          ] else ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color:
+                                    isDark ? Colors.white10 : Colors.grey[100],
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isDark
+                                      ? Colors.white24
+                                      : Colors.grey.shade300,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.phone_android,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Teléfono: ${widget.perfil['telefono_contacto'] ?? 'No disponible'}',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodyLarge
+                                          ?.color,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Copia este número para contactarlo.',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                          const SizedBox(height: 16),
 
-                    const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: _abrirMapa,
+                                  icon: Icon(
+                                    Icons.location_on,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    'Cómo llegar',
+                                    style: TextStyle(
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: _compartirPerfil,
+                                  icon: Icon(
+                                    Icons.share,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyLarge
+                                        ?.color,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    'Compartir',
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodyLarge
+                                          ?.color,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: isDark
+                                          ? Colors.white54
+                                          : Colors.black87,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
 
-                    // ==========================================
-                    // SECCIÓN: SOBRE NOSOTROS (Descripción)
-                    // ==========================================
-                    if (widget.perfil['descripcion'] != null &&
-                        widget.perfil['descripcion']
-                            .toString()
-                            .trim()
-                            .isNotEmpty) ...[
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Sobre nosotros',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).textTheme.bodyLarge?.color,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          widget.perfil['descripcion'],
-                          style: TextStyle(
-                            fontSize: 15,
-                            height: 1.5,
-                            color: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.color,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 24),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${widget.perfil['calificacion_promedio'] ?? '0.0'} (${widget.perfil['total_resenas'] ?? '0'} opiniones)',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).textTheme.bodyLarge?.color,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: abierto
-                            ? (isDark
-                                  ? Colors.green.withValues(alpha: 0.2)
-                                  : Colors.green[50])
-                            : (isDark
-                                  ? Colors.red.withValues(alpha: 0.2)
-                                  : Colors.red[50]),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: abierto ? Colors.green : Colors.red,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            abierto ? Icons.check_circle : Icons.cancel,
-                            color: abierto ? Colors.green : Colors.red,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            abierto ? 'Abierto Ahora' : 'Cerrado',
-                            style: TextStyle(
-                              color: abierto ? Colors.green : Colors.red,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    if (planId > 1) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton.icon(
-                          onPressed: _contactarWhatsApp,
-                          icon: const Icon(Icons.chat, color: Colors.white),
-                          label: const Text(
-                            'Contactar por WhatsApp',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF25D366),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ] else ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isDark
-                                ? Colors.white24
-                                : Colors.grey.shade300,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.phone_android,
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.color,
-                            ),
+                          if (planId == 3 &&
+                              ((widget.perfil['sitio_web'] != null &&
+                                      widget.perfil['sitio_web']
+                                          .toString()
+                                          .trim()
+                                          .isNotEmpty) ||
+                                  (widget.perfil['instagram'] != null &&
+                                      widget.perfil['instagram']
+                                          .toString()
+                                          .isNotEmpty) ||
+                                  (widget.perfil['facebook'] != null &&
+                                      widget.perfil['facebook']
+                                          .toString()
+                                          .isNotEmpty))) ...[
+                            const SizedBox(height: 16),
+                            const Divider(color: Colors.grey),
                             const SizedBox(height: 8),
                             Text(
-                              'Teléfono: ${widget.perfil['telefono_contacto'] ?? 'No disponible'}',
+                              'Web Oficial y Redes',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -1014,183 +1355,90 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                                     .bodyLarge
                                     ?.color,
                               ),
+                              textAlign: TextAlign.center,
                             ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Copia este número para contactarlo.',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _abrirMapa,
-                            icon: Icon(
-                              Icons.location_on,
-                              color: Theme.of(context).primaryColor,
-                              size: 18,
-                            ),
-                            label: Text(
-                              'Cómo llegar',
-                              style: TextStyle(
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(
-                                color: Theme.of(context).primaryColor,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _compartirPerfil,
-                            icon: Icon(
-                              Icons.share,
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .bodyLarge
-                                  ?.color,
-                              size: 18,
-                            ),
-                            label: Text(
-                              'Compartir',
-                              style: TextStyle(
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.color,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(
-                                color: isDark ? Colors.white54 : Colors.black87,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // ==========================================
-                    // REDES SOCIALES Y PÁGINA WEB (Solo Premium)
-                    // ==========================================
-                    if (planId == 3 &&
-                        ((widget.perfil['sitio_web'] != null &&
+                            const SizedBox(height: 12),
+                            if (widget.perfil['sitio_web'] != null &&
                                 widget.perfil['sitio_web']
                                     .toString()
                                     .trim()
-                                    .isNotEmpty) ||
-                            (widget.perfil['instagram'] != null &&
-                                widget.perfil['instagram']
-                                    .toString()
-                                    .isNotEmpty) ||
-                            (widget.perfil['facebook'] != null &&
-                                widget.perfil['facebook']
-                                    .toString()
-                                    .isNotEmpty))) ...[
-                      const SizedBox(height: 16),
-                      const Divider(color: Colors.grey),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Web Oficial y Redes',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 12),
-                      if (widget.perfil['sitio_web'] != null &&
-                          widget.perfil['sitio_web']
-                              .toString()
-                              .trim()
-                              .isNotEmpty) ...[
-                        SizedBox(
-                          width: double.infinity,
-                          height: 46,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              String rawUrl = widget.perfil['sitio_web']
-                                  .toString()
-                                  .trim();
-                              if (!rawUrl.startsWith('http://') &&
-                                  !rawUrl.startsWith('https://')) {
-                                rawUrl = 'https://$rawUrl';
-                              }
-                              _abrirRedSocial(rawUrl);
-                            },
-                            icon: const Icon(
-                              Icons.language,
-                              color: Colors.white,
-                            ),
-                            label: const Text(
-                              'Visitar Página Web Oficial',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
+                                    .isNotEmpty) ...[
+                              SizedBox(
+                                width: double.infinity,
+                                height: 46,
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    String rawUrl = widget.perfil['sitio_web']
+                                        .toString()
+                                        .trim();
+                                    if (!rawUrl.startsWith('http://') &&
+                                        !rawUrl.startsWith('https://')) {
+                                      rawUrl = 'https://$rawUrl';
+                                    }
+                                    _abrirRedSocial(rawUrl);
+                                  },
+                                  icon: const Icon(
+                                    Icons.language,
+                                    color: Colors.white,
+                                  ),
+                                  label: const Text(
+                                    'Visitar Página Web Oficial',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0077B6),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
                               ),
+                              const SizedBox(height: 12),
+                            ],
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (widget.perfil['instagram'] != null &&
+                                    widget.perfil['instagram']
+                                        .toString()
+                                        .isNotEmpty)
+                                  IconButton(
+                                    onPressed: () => _abrirRedSocial(
+                                      widget.perfil['instagram'],
+                                    ),
+                                    icon: const Icon(
+                                      Icons.camera_alt,
+                                      color: Colors.purpleAccent,
+                                      size: 32,
+                                    ),
+                                    tooltip: 'Instagram',
+                                  ),
+                                if (widget.perfil['facebook'] != null &&
+                                    widget.perfil['facebook']
+                                        .toString()
+                                        .isNotEmpty)
+                                  IconButton(
+                                    onPressed: () => _abrirRedSocial(
+                                      widget.perfil['facebook'],
+                                    ),
+                                    icon: const Icon(
+                                      Icons.facebook,
+                                      color: Colors.blue,
+                                      size: 32,
+                                    ),
+                                    tooltip: 'Facebook',
+                                  ),
+                              ],
                             ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0077B6),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (widget.perfil['instagram'] != null &&
-                              widget.perfil['instagram'].toString().isNotEmpty)
-                            IconButton(
-                              onPressed: () =>
-                                  _abrirRedSocial(widget.perfil['instagram']),
-                              icon: const Icon(
-                                Icons.camera_alt,
-                                color: Colors.purpleAccent,
-                                size: 32,
-                              ),
-                              tooltip: 'Instagram',
-                            ),
-                          if (widget.perfil['facebook'] != null &&
-                              widget.perfil['facebook'].toString().isNotEmpty)
-                            IconButton(
-                              onPressed: () =>
-                                  _abrirRedSocial(widget.perfil['facebook']),
-                              icon: const Icon(
-                                Icons.facebook,
-                                color: Colors.blue,
-                                size: 32,
-                              ),
-                              tooltip: 'Facebook',
-                            ),
+                          ],
+                          const SizedBox(height: 16),
                         ],
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -1286,7 +1534,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
               ],
 
               // ==========================================
-              // SECCIÓN DE RESEÑAS (LIBRE SIN LOGIN)
+              // SECCIÓN DE RESEÑAS
               // ==========================================
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -1411,7 +1659,30 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                         );
                       },
                     ),
-              const SizedBox(height: 30),
+
+              // BOTÓN VISIBLE DE REPORTAR AL PIE DEL PERFIL
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                child: TextButton.icon(
+                  onPressed: _mostrarDialogoReportar,
+                  icon: const Icon(
+                    Icons.flag_outlined,
+                    color: Colors.redAccent,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Reportar perfil o contenido inapropiado',
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
 
               if (planId != 3 && profesionalesSimilares.isNotEmpty) ...[
                 Padding(

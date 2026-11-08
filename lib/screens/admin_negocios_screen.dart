@@ -531,11 +531,24 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
               ),
               ListTile(
                 dense: true,
+                leading: const Icon(Icons.calendar_month, color: Colors.blue),
+                title: const Text(
+                  'Activar Plan MEDIO ANUAL (\$50.000 / 1 año)',
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  cambiarPlan(negocio, 2, periodoPago: 'anual');
+                },
+              ),
+              ListTile(
+                dense: true,
                 leading: const Icon(
                   Icons.workspace_premium,
                   color: Colors.purple,
                 ),
-                title: const Text('Activar Plan ANUAL (Cubre 1 año completo)'),
+                title: const Text(
+                  'Activar Plan PREMIUM ANUAL (\$200.000 / 1 año)',
+                ),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   cambiarPlan(negocio, 3, periodoPago: 'anual');

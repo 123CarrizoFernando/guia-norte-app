@@ -28,6 +28,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic>? perfilData;
   List<dynamic> miGaleria = [];
+  List<dynamic> misNotificaciones = [];
   bool isLoading = true;
   bool isUploading = false;
   bool isUploadingPortada = false;
@@ -59,12 +60,118 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (responseGaleria.statusCode == 200 && mounted) {
           setState(() => miGaleria = json.decode(responseGaleria.body));
         }
+
+        // Cargar las notificaciones de actividad del negocio (suscriptores, reseñas, likes)
+        final urlNotif = Uri.parse(
+          'https://guia-norte-backend.onrender.com/api/perfiles/${data['id']}/notificaciones-actividad',
+        );
+        final resNotif = await http.get(urlNotif);
+        if (resNotif.statusCode == 200 && mounted) {
+          setState(() => misNotificaciones = json.decode(resNotif.body));
+        }
       }
     } catch (e) {
       debugPrint('Error: $e');
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  // ==========================================
+  // MODAL DE CAMPANITA: VER SUSCRIPTORES, RESEÑAS Y REACCIONES
+  // ==========================================
+  Future<void> _mostrarMisNotificaciones() async {
+    if (perfilData == null) return;
+
+    http.put(
+      Uri.parse(
+        'https://guia-norte-backend.onrender.com/api/perfiles/${perfilData!['id']}/notificaciones-actividad/leer',
+      ),
+    );
+
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.notifications_active, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Actividad de mi Negocio',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Divider(),
+              Expanded(
+                child: misNotificaciones.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Aún no tienes notificaciones de suscriptores, reseñas o reacciones.',
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: misNotificaciones.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (ctx, i) {
+                          final n = misNotificaciones[i];
+                          final String tipo = (n['tipo'] ?? '').toString();
+
+                          IconData icono = Icons.notifications_active;
+                          Color colorIcono = Colors.amber.shade800;
+
+                          if (tipo == 'resena') {
+                            icono = Icons.star;
+                            colorIcono = Colors.amber;
+                          } else if (tipo == 'like') {
+                            icono = Icons.thumb_up;
+                            colorIcono = Colors.green;
+                          } else if (tipo == 'dislike') {
+                            icono = Icons.thumb_down;
+                            colorIcono = Colors.redAccent;
+                          } else if (tipo == 'suscripcion') {
+                            icono = Icons.people_alt;
+                            colorIcono = const Color(0xFF00B4D8);
+                          }
+
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: colorIcono.withValues(
+                                alpha: 0.15,
+                              ),
+                              child: Icon(icono, color: colorIcono, size: 20),
+                            ),
+                            title: Text(
+                              n['titulo'] ?? '',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: Text(
+                              n['mensaje'] ?? '',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    cargarPerfilYGaleria();
   }
 
   String _obtenerMiniaturaCloudinary(String url, String? tipo) {
@@ -299,7 +406,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      '• El pago mensual cubre el mes actual y se renueva del 1 al 10 del mes siguiente.\n• Con el pago anual ahorras 2 meses y te olvidas por 1 año.',
+                      '• Si abonas después del día 15, te bonificamos el resto de este mes + todo el mes siguiente completo.\n• Las renovaciones se abonan del 1 al 10 de cada mes.\n• Con el pago anual ahorras 2 meses y te olvidas por 1 año.',
                       style: TextStyle(fontSize: 12),
                     ),
                     const SizedBox(height: 12),
@@ -662,6 +769,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .where((item) => item['tipo'] == 'video')
         .length;
 
+    final int noLeidas = misNotificaciones
+        .where((n) => n['leida'] == false)
+        .length;
+
     final int diaDelMes = DateTime.now().day;
     final bool mostrarAlertaRenovacion = planActual > 1 && diaDelMes <= 10;
 
@@ -673,6 +784,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          if (perfilData != null)
+            IconButton(
+              icon: Badge(
+                isLabelVisible: noLeidas > 0,
+                label: Text('$noLeidas'),
+                child: const Icon(Icons.notifications_outlined),
+              ),
+              tooltip: 'Ver actividad (Suscriptores y Reseñas)',
+              onPressed: _mostrarMisNotificaciones,
+            ),
           IconButton(
             icon: Icon(
               isDark ? Icons.light_mode : Icons.dark_mode,
@@ -844,15 +965,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
 
-                    Text(
-                      'Rendimiento de mi Negocio',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Rendimiento de mi Negocio',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _mostrarMisNotificaciones,
+                          icon: Badge(
+                            isLabelVisible: noLeidas > 0,
+                            label: Text('$noLeidas'),
+                            child: const Icon(
+                              Icons.notifications_active_outlined,
+                              size: 18,
+                            ),
+                          ),
+                          label: const Text('Actividad'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
@@ -870,13 +1008,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 const Icon(
                                   Icons.visibility,
                                   color: Color(0xFF00B4D8),
-                                  size: 28,
+                                  size: 26,
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
                                   '${perfilData!['visitas_perfil'] ?? 0}',
                                   style: TextStyle(
-                                    fontSize: 20,
+                                    fontSize: 19,
                                     fontWeight: FontWeight.bold,
                                     color: Theme.of(context)
                                         .textTheme
@@ -908,13 +1046,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 const Icon(
                                   Icons.chat,
                                   color: Color(0xFF25D366),
-                                  size: 28,
+                                  size: 26,
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
                                   '${perfilData!['clics_whatsapp'] ?? 0}',
                                   style: TextStyle(
-                                    fontSize: 20,
+                                    fontSize: 19,
                                     fontWeight: FontWeight.bold,
                                     color: Theme.of(context)
                                         .textTheme
@@ -946,13 +1084,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 const Icon(
                                   Icons.people_alt,
                                   color: Colors.amber,
-                                  size: 28,
+                                  size: 26,
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
                                   '${perfilData!['total_suscriptores'] ?? 0}',
                                   style: TextStyle(
-                                    fontSize: 20,
+                                    fontSize: 19,
                                     fontWeight: FontWeight.bold,
                                     color: Theme.of(context)
                                         .textTheme
@@ -963,6 +1101,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 const Text(
                                   'Suscriptores',
                                   style: TextStyle(fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 10,
+                              horizontal: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isDark ? Colors.white10 : Colors.black12,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.thumb_up_alt,
+                                  color: Colors.green,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${perfilData!['total_likes'] ?? 0} Me gusta',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 10,
+                              horizontal: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isDark ? Colors.white10 : Colors.black12,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.thumb_down_alt,
+                                  color: Colors.redAccent,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${perfilData!['total_dislikes'] ?? 0} No me gusta',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ],
                             ),
@@ -986,7 +1196,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       clipBehavior: Clip.antiAlias,
                       child: Column(
                         children: [
-                          // BANNER DE PORTADA EXCLUSIVA ARRIBA DEL LOGO
                           GestureDetector(
                             onTap: _cambiarFotoPortada,
                             child: Container(
@@ -1211,7 +1420,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 24),
 
                     // ==========================================
-                    // SECCIÓN: MI PORTAFOLIO (CON BOTONES PARA EDITAR Y ELIMINAR CADA FOTO/VIDEO)
+                    // SECCIÓN: MI PORTAFOLIO
                     // ==========================================
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1396,7 +1605,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         ),
                                       ),
 
-                                      // BOTONES FLOTANTES PARA REEMPLAZAR (EDITAR) Y BORRAR
                                       Positioned(
                                         top: 6,
                                         right: 6,
