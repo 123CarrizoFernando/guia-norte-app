@@ -3,7 +3,8 @@ description: "A new Flutter project."
 
 publish_to: 'none'
 
-version: 6.0.0+6
+# Si antes tenías: version: 1.0.0+1 (o +2), cámbialo al siguiente número:
+version: 1.0.1+1
 
 environment:
   sdk: ^3.13.1

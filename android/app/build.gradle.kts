@@ -11,7 +11,6 @@ plugins {
 // ==========================================
 // CARGA DE CREDENCIALES DE FIRMA DIGITAL
 // ==========================================
-
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 
@@ -50,11 +49,17 @@ android {
     }
 
     buildTypes {
-        release {
-            // AQUÍ CONECTAMOS LA LLAVE REAL DE PRODUCCIÓN
+        getByName("release") {
+            // CONECTA TU FIRMA DIGITAL DE PRODUCCIÓN:
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
-            isShrinkResources = false
+
+            // OPTIMIZACIÓN R8 / DEX PARA GOOGLE PLAY:
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
@@ -68,4 +73,3 @@ kotlin {
 flutter {
     source = "../.."
 }
-

@@ -4,8 +4,8 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // ESTA ES LA LÍNEA MÁGICA DE FIREBASE
-        classpath("com.google.gms:google-services:4.4.0")
+        // Actualizado a 4.4.4 para coincidir con settings.gradle.kts
+        classpath("com.google.gms:google-services:4.4.4")
     }
 }
 
