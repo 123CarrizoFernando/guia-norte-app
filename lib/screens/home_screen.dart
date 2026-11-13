@@ -28,6 +28,11 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isLoading = true;
   final _searchController = TextEditingController();
 
+  // Contadores de alertas para tu cuenta de Administrador
+  int _nuevosPorAprobar = 0;
+  int _pagosPendientes = 0;
+  int _perfilesReportados = 0;
+
   @override
   void initState() {
     super.initState();
@@ -42,7 +47,54 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _cargarDatos() async {
     await _cargarPreferenciasUsoCategorias();
-    await Future.wait([fetchCategorias(), fetchDestacados()]);
+    await _cargarCacheInstantaneo(); // Muestra los datos al instante sin esperar a Render
+    await Future.wait([
+      fetchCategorias(),
+      fetchDestacados(),
+      _verificarPendientesAdmin(),
+    ]);
+  }
+
+  Future<void> _cargarCacheInstantaneo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? catCache = prefs.getString('cache_categorias_v1');
+    final String? destCache = prefs.getString('cache_destacados_v1');
+
+    if (catCache != null && catCache.isNotEmpty) {
+      try {
+        final List<dynamic> dataCat = json.decode(catCache);
+        _ordenarListasDeCategorias(dataCat);
+        isLoading = false;
+      } catch (_) {}
+    }
+    if (destCache != null && destCache.isNotEmpty) {
+      try {
+        final List<dynamic> dataDest = json.decode(destCache);
+        destacados = dataDest.where((p) => p['plan_id'] == 3).toList();
+      } catch (_) {}
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _verificarPendientesAdmin() async {
+    final email = FirebaseAuth.instance.currentUser?.email;
+    if (email != 'yoprogramador99@gmail.com') return;
+
+    try {
+      final res = await http.get(
+        Uri.parse(
+          'https://guia-norte-backend.onrender.com/api/admin/resumen-pendientes',
+        ),
+      );
+      if (res.statusCode == 200 && mounted) {
+        final data = json.decode(res.body);
+        setState(() {
+          _nuevosPorAprobar = data['nuevos_por_aprobar'] ?? 0;
+          _pagosPendientes = data['pagos_pendientes'] ?? 0;
+          _perfilesReportados = data['reportados'] ?? 0;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _cargarPreferenciasUsoCategorias() async {
@@ -120,6 +172,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cache_categorias_v1', response.body);
+
         final List<dynamic> data = json.decode(response.body);
         setState(() {
           _ordenarListasDeCategorias(data);
@@ -143,6 +198,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cache_destacados_v1', response.body);
+
         final List<dynamic> perfilesTotales = json.decode(response.body);
         setState(() {
           destacados = perfilesTotales.where((p) => p['plan_id'] == 3).toList();
@@ -321,7 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     MaterialPageRoute(
                       builder: (context) => const AdminDashboardScreen(),
                     ),
-                  );
+                  ).then((_) => _verificarPendientesAdmin());
                 },
               ),
             Padding(
@@ -419,6 +477,72 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ALERTA AUTOMÁTICA EXCLUSIVA PARA TU CUENTA ADMIN CUANDO HAY ALTAS O PAGOS PENDIENTES
+              if (FirebaseAuth.instance.currentUser?.email ==
+                      'yoprogramador99@gmail.com' &&
+                  (_nuevosPorAprobar > 0 ||
+                      _pagosPendientes > 0 ||
+                      _perfilesReportados > 0))
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminDashboardScreen(),
+                      ),
+                    ).then((_) => _verificarPendientesAdmin());
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade900,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.amber.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.notification_important,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                '🔔 ¡Atención Administrador!',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                'Tienes $_nuevosPorAprobar cuenta(s) esperando Alta, $_pagosPendientes pago(s) por verificar y $_perfilesReportados reporte(s). Toca para revisar.',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, color: Colors.white),
+                      ],
+                    ),
+                  ),
+                ),
+
               Container(
                 height: 150,
                 width: double.infinity,
@@ -589,7 +713,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       itemCount: destacados.length,
                       itemBuilder: (context, index) {
                         final prof = destacados[index];
-                        // Usa la portada_url exclusiva (o su logo si no cargó portada)
                         final String? imagenPortada =
                             (prof['portada_url'] != null &&
                                 prof['portada_url'].toString().isNotEmpty)

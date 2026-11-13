@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'home_screen.dart';
@@ -101,6 +102,20 @@ class _MainScreenState extends State<MainScreen> {
         try {
           await messaging.subscribeToTopic('general');
           debugPrint('Suscrito al tema: general');
+
+          // Si es tu cuenta de Administrador, suscribir al canal de alertas de altas y pagos
+          final user = FirebaseAuth.instance.currentUser;
+          if (user?.email == 'yoprogramador99@gmail.com') {
+            await messaging.subscribeToTopic('admin_alertas');
+            debugPrint('Admin suscrito al tema: admin_alertas');
+          }
+
+          // Escuchar por si inicias sesión como Admin unos segundos después
+          FirebaseAuth.instance.authStateChanges().listen((User? u) async {
+            if (u?.email == 'yoprogramador99@gmail.com') {
+              await messaging.subscribeToTopic('admin_alertas');
+            }
+          });
         } catch (e) {
           debugPrint('Error al suscribirse al tema: $e');
         }
