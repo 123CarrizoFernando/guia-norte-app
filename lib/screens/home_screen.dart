@@ -83,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final res = await http.get(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/admin/resumen-pendientes',
+          'https://guia-norte-backend-q7ah.onrender.com/api/admin/resumen-pendientes',
         ),
       );
       if (res.statusCode == 200 && mounted) {
@@ -165,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> fetchCategorias() async {
     try {
       final url = Uri.parse(
-        'https://guia-norte-backend.onrender.com/api/categorias',
+        'https://guia-norte-backend-q7ah.onrender.com/api/categorias',
       );
       final response = await http.get(url);
 
@@ -192,7 +192,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> fetchDestacados() async {
     try {
       final response = await http.get(
-        Uri.parse('https://guia-norte-backend.onrender.com/api/destacados'),
+        Uri.parse(
+          'https://guia-norte-backend-q7ah.onrender.com/api/destacados',
+        ),
       );
 
       if (!mounted) return;

@@ -73,7 +73,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
   Future<void> buscarProfesionales() async {
     try {
       final url = Uri.parse(
-        'https://guia-norte-backend.onrender.com/api/buscar?q=${Uri.encodeComponent(widget.query)}',
+        'https://guia-norte-backend-q7ah.onrender.com/api/buscar?q=${Uri.encodeComponent(widget.query)}',
       );
       final response = await http.get(url);
 
@@ -112,7 +112,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
     try {
       final res = await http.get(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/perfiles/$perfilId/galeria',
+          'https://guia-norte-backend-q7ah.onrender.com/api/perfiles/$perfilId/galeria',
         ),
       );
       if (res.statusCode == 200 && mounted) {

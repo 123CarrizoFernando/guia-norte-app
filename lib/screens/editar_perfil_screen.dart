@@ -373,7 +373,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
               DropdownButtonFormField<int>(
                 isExpanded: true,
-                value: _categoriaSeleccionada,
+                initialValue: _categoriaSeleccionada,
                 decoration: InputDecoration(
                   labelText: 'Categoría Principal',
                   border: OutlineInputBorder(
@@ -406,7 +406,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
               DropdownButtonFormField<int>(
                 isExpanded: true,
-                value: _rubroSeleccionado,
+                initialValue: _rubroSeleccionado,
                 decoration: InputDecoration(
                   labelText: 'Rubro / Especialidad',
                   border: OutlineInputBorder(
@@ -440,7 +440,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
               if (_servicios.length > 1) ...[
                 DropdownButtonFormField<int>(
                   isExpanded: true,
-                  value: _servicioSeleccionado,
+                  initialValue: _servicioSeleccionado,
                   decoration: InputDecoration(
                     labelText: 'Actividad Específica',
                     border: OutlineInputBorder(

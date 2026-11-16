@@ -67,7 +67,9 @@ class _SoporteNotificacionesScreenState
 
     try {
       final res = await http.get(
-        Uri.parse('https://guia-norte-backend.onrender.com/api/categorias'),
+        Uri.parse(
+          'https://guia-norte-backend-q7ah.onrender.com/api/categorias',
+        ),
       );
       if (res.statusCode == 200 && mounted) {
         final lista = json.decode(res.body) as List<dynamic>;
@@ -172,7 +174,7 @@ class _SoporteNotificacionesScreenState
     setState(() => _enviandoSoporte = true);
     try {
       final res = await http.post(
-        Uri.parse('https://guia-norte-backend.onrender.com/api/soporte'),
+        Uri.parse('https://guia-norte-backend-q7ah.onrender.com/api/soporte'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'nombre': _nombreCtrl.text.trim(),

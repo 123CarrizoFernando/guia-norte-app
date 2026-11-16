@@ -4,7 +4,7 @@ description: "A new Flutter project."
 publish_to: 'none'
 
 # Si antes tenías: version: 1.0.0+1 (o +2), cámbialo al siguiente número:
-version: 1.0.1+1
+version: 7.0.0+9
 
 environment:
   sdk: ^3.13.1
@@ -28,6 +28,7 @@ dependencies:
   firebase_messaging: ^16.7.0
   image_cropper: ^12.2.1
   video_player: ^2.14.1
+
 
 dev_dependencies:
   flutter_test:

@@ -25,7 +25,9 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
     setState(() => isLoading = true);
     try {
       final response = await http.get(
-        Uri.parse('https://guia-norte-backend.onrender.com/api/categorias'),
+        Uri.parse(
+          'https://guia-norte-backend-q7ah.onrender.com/api/categorias',
+        ),
       );
       if (response.statusCode == 200) {
         final List<dynamic> catData = json.decode(response.body);
@@ -33,7 +35,7 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
         for (var cat in catData) {
           final resRubros = await http.get(
             Uri.parse(
-              'https://guia-norte-backend.onrender.com/api/categorias/${cat['id']}/rubros',
+              'https://guia-norte-backend-q7ah.onrender.com/api/categorias/${cat['id']}/rubros',
             ),
           );
           if (resRubros.statusCode == 200) {
@@ -129,8 +131,8 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
                 setState(() => isLoading = true);
 
                 final url = esEditar
-                    ? 'https://guia-norte-backend.onrender.com/api/admin/categorias/$id'
-                    : 'https://guia-norte-backend.onrender.com/api/admin/categorias';
+                    ? 'https://guia-norte-backend-q7ah.onrender.com/api/admin/categorias/$id'
+                    : 'https://guia-norte-backend-q7ah.onrender.com/api/admin/categorias';
 
                 final request = esEditar ? http.put : http.post;
 
@@ -215,8 +217,8 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
                 setState(() => isLoading = true);
 
                 final url = esEditar
-                    ? 'https://guia-norte-backend.onrender.com/api/admin/rubros/$rubroId'
-                    : 'https://guia-norte-backend.onrender.com/api/admin/rubros';
+                    ? 'https://guia-norte-backend-q7ah.onrender.com/api/admin/rubros/$rubroId'
+                    : 'https://guia-norte-backend-q7ah.onrender.com/api/admin/rubros';
 
                 final request = esEditar ? http.put : http.post;
 
@@ -266,7 +268,7 @@ class _AdminCategoriasScreenState extends State<AdminCategoriasScreen> {
 
               await http.delete(
                 Uri.parse(
-                  'https://guia-norte-backend.onrender.com/api/admin/rubros/$rubroId',
+                  'https://guia-norte-backend-q7ah.onrender.com/api/admin/rubros/$rubroId',
                 ),
               );
 

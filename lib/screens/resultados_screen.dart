@@ -79,7 +79,7 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
   Future<void> fetchProfesionales() async {
     try {
       final url = Uri.parse(
-        'https://guia-norte-backend.onrender.com/api/rubros/${widget.rubroId}/profesionales',
+        'https://guia-norte-backend-q7ah.onrender.com/api/rubros/${widget.rubroId}/profesionales',
       );
       final response = await http.get(url);
 
@@ -118,7 +118,7 @@ class _ResultadosScreenState extends State<ResultadosScreen> {
     try {
       final res = await http.get(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/perfiles/$perfilId/galeria',
+          'https://guia-norte-backend-q7ah.onrender.com/api/perfiles/$perfilId/galeria',
         ),
       );
       if (res.statusCode == 200 && mounted) {

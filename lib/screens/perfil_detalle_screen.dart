@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -99,13 +101,14 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     final prefs = await SharedPreferences.getInstance();
     final String key = 'reaccion_perfil_${widget.perfil['id']}';
     final String? reaccionAnterior = miReaccion;
-    final String nuevaReaccion =
-        (reaccionAnterior == tipoClickeado) ? 'ninguno' : tipoClickeado;
+    final String nuevaReaccion = (reaccionAnterior == tipoClickeado)
+        ? 'ninguno'
+        : tipoClickeado;
 
     try {
       final res = await http.post(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/reaccion',
+          'https://guia-norte-backend-q7ah.onrender.com/api/perfiles/${widget.perfil['id']}/reaccion',
         ),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
@@ -225,7 +228,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                     Navigator.pop(ctx);
                     await http.post(
                       Uri.parse(
-                        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/reportar',
+                        'https://guia-norte-backend-q7ah.onrender.com/api/perfiles/${widget.perfil['id']}/reportar',
                       ),
                       headers: {'Content-Type': 'application/json'},
                       body: json.encode({
@@ -296,7 +299,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
     try {
       final res = await http.post(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/perfiles/$idStr/suscripcion',
+          'https://guia-norte-backend-q7ah.onrender.com/api/perfiles/$idStr/suscripcion',
         ),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
@@ -333,7 +336,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
       if (nombreComercial == null) return;
 
       final url = Uri.parse(
-        'https://guia-norte-backend.onrender.com/api/buscar?q=${Uri.encodeComponent(nombreComercial)}',
+        'https://guia-norte-backend-q7ah.onrender.com/api/buscar?q=${Uri.encodeComponent(nombreComercial)}',
       );
       final response = await http.get(url);
 
@@ -364,7 +367,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   Future<void> registrarVisita() async {
     try {
       final url = Uri.parse(
-        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/visita',
+        'https://guia-norte-backend-q7ah.onrender.com/api/perfiles/${widget.perfil['id']}/visita',
       );
       await http.post(url);
     } catch (e) {
@@ -375,7 +378,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   Future<void> _contactarWhatsApp() async {
     try {
       final url = Uri.parse(
-        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/clic-whatsapp',
+        'https://guia-norte-backend-q7ah.onrender.com/api/perfiles/${widget.perfil['id']}/clic-whatsapp',
       );
       await http.post(url);
     } catch (e) {
@@ -438,7 +441,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   Future<void> fetchGaleria() async {
     try {
       final url = Uri.parse(
-        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/galeria',
+        'https://guia-norte-backend-q7ah.onrender.com/api/perfiles/${widget.perfil['id']}/galeria',
       );
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -523,7 +526,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
   Future<void> fetchResenas() async {
     try {
       final url = Uri.parse(
-        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/resenas',
+        'https://guia-norte-backend-q7ah.onrender.com/api/perfiles/${widget.perfil['id']}/resenas',
       );
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -573,7 +576,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
           : _nombreAutorController.text.trim();
 
       final url = Uri.parse(
-        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfil['id']}/resenas',
+        'https://guia-norte-backend-q7ah.onrender.com/api/perfiles/${widget.perfil['id']}/resenas',
       );
       final response = await http.post(
         url,
@@ -698,8 +701,7 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                         color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                       decoration: InputDecoration(
-                        hintText:
-                            '¿Cómo fue tu experiencia con este comercio o profesional?',
+                        hintText: '¿Cómo fue tu experiencia con este comercio o profesional?',
                         hintStyle: TextStyle(
                           color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
@@ -871,8 +873,9 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.2),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       blurRadius: 8,
                                     ),
                                   ],
@@ -884,10 +887,8 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                                       : Colors.blue[50],
                                   backgroundImage:
                                       widget.perfil['logo_url'] != null
-                                          ? NetworkImage(
-                                              widget.perfil['logo_url'],
-                                            )
-                                          : null,
+                                      ? NetworkImage(widget.perfil['logo_url'])
+                                      : null,
                                   child: widget.perfil['logo_url'] == null
                                       ? Icon(
                                           Icons.store,
@@ -929,8 +930,10 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              color:
-                                  Theme.of(context).textTheme.bodyLarge?.color,
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.color,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -960,9 +963,9 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                                     color: miReaccion == 'like'
                                         ? Colors.green
                                         : Theme.of(context)
-                                            .textTheme
-                                            .bodyLarge
-                                            ?.color,
+                                              .textTheme
+                                              .bodyLarge
+                                              ?.color,
                                   ),
                                 ),
                                 style: OutlinedButton.styleFrom(
@@ -996,9 +999,9 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                                     color: miReaccion == 'dislike'
                                         ? Colors.redAccent
                                         : Theme.of(context)
-                                            .textTheme
-                                            .bodyLarge
-                                            ?.color,
+                                              .textTheme
+                                              .bodyLarge
+                                              ?.color,
                                   ),
                                 ),
                                 style: OutlinedButton.styleFrom(
@@ -1221,8 +1224,9 @@ class _PerfilDetalleScreenState extends State<PerfilDetalleScreen> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color:
-                                    isDark ? Colors.white10 : Colors.grey[100],
+                                color: isDark
+                                    ? Colors.white10
+                                    : Colors.grey[100],
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: isDark

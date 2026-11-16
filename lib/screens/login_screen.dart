@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (user != null) {
         // Enlazar con nuestro backend en Render
         final url = Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/auth/google',
+          'https://guia-norte-backend-q7ah.onrender.com/api/auth/google',
         );
         final response = await http.post(
           url,

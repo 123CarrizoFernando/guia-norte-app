@@ -93,7 +93,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     try {
       final url = Uri.parse(
-        'https://guia-norte-backend.onrender.com/api/admin/notificaciones',
+        'https://guia-norte-backend-q7ah.onrender.com/api/admin/notificaciones',
       );
       final response = await http.post(
         url,

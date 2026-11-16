@@ -31,7 +31,9 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
     setState(() => isLoading = true);
     try {
       final response = await http.get(
-        Uri.parse('https://guia-norte-backend.onrender.com/api/admin/perfiles'),
+        Uri.parse(
+          'https://guia-norte-backend-q7ah.onrender.com/api/admin/perfiles',
+        ),
       );
       if (response.statusCode == 200) {
         setState(() {
@@ -82,7 +84,7 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
     try {
       final res = await http.put(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/admin/perfiles/$perfilId/estado-cuenta',
+          'https://guia-norte-backend-q7ah.onrender.com/api/admin/perfiles/$perfilId/estado-cuenta',
         ),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'estado_cuenta': nuevoEstado}),
@@ -156,7 +158,7 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
     try {
       final res = await http.post(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/admin/recordar-pagos',
+          'https://guia-norte-backend-q7ah.onrender.com/api/admin/recordar-pagos',
         ),
       );
       if (res.statusCode == 200 && mounted) {
@@ -207,7 +209,7 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
     try {
       final res = await http.post(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/admin/perfiles/${negocio['id']}/banear',
+          'https://guia-norte-backend-q7ah.onrender.com/api/admin/perfiles/${negocio['id']}/banear',
         ),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
@@ -256,7 +258,7 @@ class _AdminNegociosScreenState extends State<AdminNegociosScreen> {
     try {
       final response = await http.put(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/admin/perfiles/$perfilId/plan',
+          'https://guia-norte-backend-q7ah.onrender.com/api/admin/perfiles/$perfilId/plan',
         ),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({

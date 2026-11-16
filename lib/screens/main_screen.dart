@@ -62,7 +62,7 @@ class _MainScreenState extends State<MainScreen> {
     try {
       final res = await http.get(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/perfiles/$perfilId',
+          'https://guia-norte-backend-q7ah.onrender.com/api/perfiles/$perfilId',
         ),
       );
       if (res.statusCode == 200) {

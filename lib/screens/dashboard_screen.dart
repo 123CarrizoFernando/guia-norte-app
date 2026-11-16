@@ -122,7 +122,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       )
                     : ListView.separated(
                         itemCount: misNotificaciones.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (ctx, i) {
                           final n = misNotificaciones[i];
                           final String tipo = (n['tipo'] ?? '').toString();

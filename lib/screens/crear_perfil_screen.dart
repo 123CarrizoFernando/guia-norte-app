@@ -8,8 +8,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'dart:typed_data';
-
 import 'terminos_condiciones_dialog.dart';
 import 'dashboard_screen.dart';
 import 'main_screen.dart';
@@ -63,7 +61,9 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
   Future<void> _fetchCategorias() async {
     try {
       final response = await http.get(
-        Uri.parse('https://guia-norte-backend.onrender.com/api/categorias'),
+        Uri.parse(
+          'https://guia-norte-backend-q7ah.onrender.com/api/categorias',
+        ),
       );
       if (!mounted) return;
       if (response.statusCode == 200) {
@@ -78,7 +78,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
     try {
       final response = await http.get(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/categorias/$categoriaId/rubros',
+          'https://guia-norte-backend-q7ah.onrender.com/api/categorias/$categoriaId/rubros',
         ),
       );
       if (!mounted) return;
@@ -94,7 +94,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
     try {
       final response = await http.get(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/rubros/$rubroId/servicios',
+          'https://guia-norte-backend-q7ah.onrender.com/api/rubros/$rubroId/servicios',
         ),
       );
       if (!mounted) return;
@@ -230,7 +230,7 @@ class _CrearPerfilScreenState extends State<CrearPerfilScreen> {
       }
 
       final url = Uri.parse(
-        'https://guia-norte-backend.onrender.com/api/perfiles',
+        'https://guia-norte-backend-q7ah.onrender.com/api/perfiles',
       );
       final response = await http.post(
         url,
