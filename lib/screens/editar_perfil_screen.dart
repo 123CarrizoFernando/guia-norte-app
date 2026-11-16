@@ -89,7 +89,9 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   Future<void> _fetchCategorias() async {
     try {
       final response = await http.get(
-        Uri.parse('https://guia-norte-backend.onrender.com/api/categorias'),
+        Uri.parse(
+          'https://guia-norte-backend-q7ah.onrender.com/api/categorias',
+        ),
       );
       if (!mounted) return;
       if (response.statusCode == 200) {
@@ -114,7 +116,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     try {
       final response = await http.get(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/categorias/$categoriaId/rubros',
+          'https://guia-norte-backend-q7ah.onrender.com/api/categorias/$categoriaId/rubros',
         ),
       );
       if (!mounted) return;
@@ -140,7 +142,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     try {
       final response = await http.get(
         Uri.parse(
-          'https://guia-norte-backend.onrender.com/api/rubros/$rubroId/servicios',
+          'https://guia-norte-backend-q7ah.onrender.com/api/rubros/$rubroId/servicios',
         ),
       );
       if (!mounted) return;
@@ -265,7 +267,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       }
 
       final url = Uri.parse(
-        'https://guia-norte-backend.onrender.com/api/perfiles/${widget.perfilData['id']}',
+        'https://guia-norte-backend-q7ah.onrender.com/api/perfiles/${widget.perfilData['id']}',
       );
 
       final response = await http.put(

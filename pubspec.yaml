@@ -4,7 +4,7 @@ description: "A new Flutter project."
 publish_to: 'none'
 
 # Si antes tenías: version: 1.0.0+1 (o +2), cámbialo al siguiente número:
-version: 7.0.0+9
+version: 7.0.1+1
 
 environment:
   sdk: ^3.13.1
